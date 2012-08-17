@@ -54,6 +54,7 @@ static DECLARE_MUTEX(i2c_sem);
 
 static int bl_timeout = 1600; // This gets overridden by userspace AriesParts
 static int bl_wakelock = 0;
+
 static struct timer_list bl_timer;
 static void bl_off(struct work_struct *bl_off_work);
 static DECLARE_WORK(bl_off_work, bl_off);
@@ -195,7 +196,7 @@ out:
 	return ret;
 }
 
-static void bl_set_timeout(void) {
+static void bl_set_timeout() {
 	if (bl_timeout > 0) {
 		mod_timer(&bl_timer, jiffies + msecs_to_jiffies(bl_timeout));
 	}
@@ -669,7 +670,6 @@ static void notify_led_on(void) {
         printk(KERN_DEBUG "[TouchKey] touchkey get wake_lock\n");
         wake_lock(&bln_wake_lock);
     }
-
         up(&enable_sem);
 
 	bl_set_timeout();
@@ -699,7 +699,6 @@ static void notify_led_off(void) {
         printk(KERN_DEBUG "[TouchKey] touchkey clear wake_lock\n");
         wake_unlock(&bln_wake_lock);
     }
-
 
 	up(&enable_sem);
 
@@ -757,6 +756,9 @@ static DEVICE_ATTR(led, S_IRUGO | S_IWUGO , led_status_read, led_status_write);
 static DEVICE_ATTR(bl_timeout, S_IRUGO | S_IWUGO, bl_timeout_read, bl_timeout_write);
 static DEVICE_ATTR(wakelock, S_IRUGO | S_IWUGO, bl_wakelock_read, bl_wakelock_write);
 
+static DEVICE_ATTR(led, S_IRUGO | S_IWUGO , led_status_read, led_status_write);
+static DEVICE_ATTR(bl_timeout, S_IRUGO | S_IWUGO, bl_timeout_read, bl_timeout_write);
+
 static struct attribute *bl_led_attributes[] = {
 		&dev_attr_led.attr,
 		&dev_attr_bl_timeout.attr, // Not the best place, but creating a new device is more trouble that it's worth
@@ -774,6 +776,7 @@ static struct miscdevice bl_led_device = {
 };
 
 extern int charging_boot;
+
 static int cypress_touchkey_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -984,6 +987,7 @@ static int __devexit i2c_touchkey_remove(struct i2c_client *client)
 	struct cypress_touchkey_devdata *devdata = i2c_get_clientdata(client);
 
 	misc_deregister(&bl_led_device);
+
 	wake_lock_destroy(&bln_wake_lock);
 
 	unregister_early_suspend(&devdata->early_suspend);
