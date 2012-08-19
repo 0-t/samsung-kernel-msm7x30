@@ -586,7 +586,7 @@ static ssize_t touch_led_control(struct device *dev,
 				 size_t size)
 {
 	u8 data = 0x10;
-	if (sscanf(buf, "%d\n", (int *)&data) == 1) {
+	if (sscanf(buf, "%d\n", &data) == 1) {
 		if (!tempdata->is_powering_on && !tempdata->is_sleeping) {
 			//printk(KERN_DEBUG "touch_led_control: %d \n", data);
 			if (data || !bl_on) // Deactivate led only if BLN is inactive
