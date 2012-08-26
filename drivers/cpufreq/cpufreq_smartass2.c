@@ -66,11 +66,11 @@ static unsigned int awake_ideal_freq;
 static unsigned int sleep_ideal_freq;
 
 /*
- * Freqeuncy delta when ramping up above the ideal freqeuncy.
- * Zero disables and causes to always jump straight to max frequency.
- * When below the ideal freqeuncy we always ramp up to the ideal freq.
- */
-#define DEFAULT_RAMP_UP_STEP 128000
+* Freqeuncy delta when ramping up above the ideal freqeuncy.
+* Zero disables and causes to always jump straight to max frequency.
+* When below the ideal freqeuncy we always ramp up to the ideal freq.
+*/
+#define DEFAULT_RAMP_UP_STEP 192000
 static unsigned int ramp_up_step;
 
 /*

@@ -574,7 +574,11 @@ all: vmlinux
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os
 else
+ifdef CONFIG_CC_OPTIMIZE_O3
+KBUILD_CFLAGS	+= -O3 -fno-tree-vectorize
+else
 KBUILD_CFLAGS	+= -O2
+endif
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
