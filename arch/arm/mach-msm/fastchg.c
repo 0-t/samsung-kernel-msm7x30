@@ -12,6 +12,7 @@
  *
  */
 
+#include <linux/module.h>
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <linux/fastchg.h>
