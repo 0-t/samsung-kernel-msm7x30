@@ -1407,6 +1407,14 @@ config MSM_CPU_FREQ_MIN
 	depends on MSM_CPU_FREQ_SET_MIN_MAX
 	default 245760
 
+config MSM_CPU_FREQ_EXTREME_UV
+	bool "Enable Extreme Undervolt frequency mode"
+	default n
+	help
+	  Enabling this option change all voltage of all frequency for the extreme undervolt.
+
+	  If unsure, say N.
+	  
 endif # CPU_FREQ_MSM
 
 config MSM_CPU_AVS
