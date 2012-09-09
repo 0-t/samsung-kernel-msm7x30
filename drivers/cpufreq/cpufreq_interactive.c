@@ -343,6 +343,59 @@ exit:
 	return;
 }
 
+static void cpufreq_interactive_tune(struct work_struct *work)
+{
+	unsigned int cpu;
+	cpumask_t tmp_mask;
+	unsigned long flags;
+	struct cpufreq_interactive_cpuinfo *pcpu;
+
+	unsigned int max_total_avg_load = 0;
+	unsigned int index;
+
+	spin_lock_irqsave(&tune_cpumask_lock, flags);
+	tmp_mask = tune_cpumask;
+	cpumask_clear(&tune_cpumask);
+	spin_unlock_irqrestore(&tune_cpumask_lock, flags);
+
+	for_each_cpu(cpu, &tmp_mask) {
+		unsigned int j;
+
+		pcpu = &per_cpu(cpuinfo, cpu);
+		smp_rmb();
+
+		if (!pcpu->governor_enabled)
+			continue;
+
+		for_each_cpu(j, pcpu->policy->cpus) {
+			struct cpufreq_interactive_cpuinfo *pjcpu =
+					&per_cpu(cpuinfo, j);
+
+			if (pjcpu->total_avg_load > max_total_avg_load)
+				max_total_avg_load = pjcpu->total_avg_load;
+		}
+
+		if ((max_total_avg_load > hi_perf_threshold)
+				&& (cur_tune_value != HIGH_PERF_TUNE)) {
+				cur_tune_value = HIGH_PERF_TUNE;
+				go_hispeed_load = MIN_GO_HISPEED_LOAD;
+				min_sample_time = MAX_MIN_SAMPLE_TIME;
+				hispeed_freq = pcpu->policy->max;
+		} else if ((max_total_avg_load < low_power_threshold)
+				&& (cur_tune_value != LOW_POWER_TUNE)) {
+			/* Boost down the performance */
+				go_hispeed_load = DEFAULT_GO_HISPEED_LOAD;
+				min_sample_time = DEFAULT_MIN_SAMPLE_TIME;
+				cpufreq_frequency_table_target(pcpu->policy,
+					pcpu->freq_table, pcpu->policy->min,
+					CPUFREQ_RELATION_H, &index);
+				hispeed_freq =
+					pcpu->freq_table[index+1].frequency;
+				cur_tune_value = LOW_POWER_TUNE;
+		}
+	}
+}
+
 static void cpufreq_interactive_idle_start(void)
 {
 	struct cpufreq_interactive_cpuinfo *pcpu =
@@ -703,6 +756,36 @@ static ssize_t store_timer_rate(struct kobject *kobj,
 static struct global_attr timer_rate_attr = __ATTR(timer_rate, 0644,
 		show_timer_rate, store_timer_rate);
 
+static ssize_t show_boost(struct kobject *kobj, struct attribute *attr,
+			  char *buf)
+{
+	return sprintf(buf, "%d\n", boost_val);
+}
+
+static ssize_t store_boost(struct kobject *kobj, struct attribute *attr,
+			   const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	boost_val = val;
+
+	if (boost_val) {
+		trace_cpufreq_interactive_boost("on");
+		cpufreq_interactive_boost();
+	} else {
+		trace_cpufreq_interactive_unboost("off");
+	}
+
+	return count;
+}
+
+define_one_global_rw(boost);
+
 static ssize_t store_boostpulse(struct kobject *kobj, struct attribute *attr,
 				const char *buf, size_t count)
 {
@@ -720,6 +803,137 @@ static ssize_t store_boostpulse(struct kobject *kobj, struct attribute *attr,
 
 static struct global_attr boostpulse =
 	__ATTR(boostpulse, 0200, NULL, store_boostpulse);
+
+static ssize_t show_sampling_periods(struct kobject *kobj,
+			struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", sampling_periods);
+}
+
+static ssize_t store_sampling_periods(struct kobject *kobj,
+			struct attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned int val, t_mask = 0;
+	unsigned int *temp;
+	unsigned int j, i;
+	struct cpufreq_interactive_cpuinfo *pcpu;
+
+	ret = sscanf(buf, "%u", &val);
+	if (ret != 1)
+		return ret;
+
+	if (val == sampling_periods)
+		return count;
+
+	for_each_present_cpu(j) {
+		pcpu = &per_cpu(cpuinfo, j);
+		ret = del_timer_sync(&pcpu->cpu_timer);
+		if (ret)
+			t_mask |= BIT(j);
+		pcpu->history_load_index = 0;
+
+		temp = kmalloc((sizeof(unsigned int) * val), GFP_KERNEL);
+		if (!temp) {
+			pr_err("%s:can't allocate memory for history\n",
+					__func__);
+			count = -ENOMEM;
+			goto out;
+		}
+		memcpy(temp, pcpu->load_history,
+			(min(sampling_periods, val) * sizeof(unsigned int)));
+		if (val > sampling_periods)
+			for (i = sampling_periods; i < val; i++)
+				temp[i] = 50;
+
+		kfree(pcpu->load_history);
+		pcpu->load_history = temp;
+	}
+
+out:
+	if (!(count < 0 && val > sampling_periods))
+		sampling_periods = val;
+
+	for_each_online_cpu(j) {
+		pcpu = &per_cpu(cpuinfo, j);
+		if (t_mask & BIT(j))
+			mod_timer(&pcpu->cpu_timer,
+				jiffies + usecs_to_jiffies(timer_rate));
+	}
+
+	return count;
+}
+
+static struct global_attr sampling_periods_attr = __ATTR(sampling_periods,
+			0644, show_sampling_periods, store_sampling_periods);
+
+static ssize_t show_hi_perf_threshold(struct kobject *kobj,
+			struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", hi_perf_threshold);
+}
+
+static ssize_t store_hi_perf_threshold(struct kobject *kobj,
+			struct attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = strict_strtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	hi_perf_threshold = val;
+	return count;
+}
+
+static struct global_attr hi_perf_threshold_attr = __ATTR(hi_perf_threshold,
+			0644, show_hi_perf_threshold, store_hi_perf_threshold);
+
+
+static ssize_t show_low_power_threshold(struct kobject *kobj,
+			struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", low_power_threshold);
+}
+
+static ssize_t store_low_power_threshold(struct kobject *kobj,
+			struct attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = strict_strtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	low_power_threshold = val;
+	return count;
+}
+
+static struct global_attr low_power_threshold_attr = __ATTR(low_power_threshold,
+		     0644, show_low_power_threshold, store_low_power_threshold);
+
+static ssize_t show_low_power_rate(struct kobject *kobj,
+			struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", low_power_rate);
+}
+
+static ssize_t store_low_power_rate(struct kobject *kobj,
+			struct attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = strict_strtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+	low_power_rate = val;
+	return count;
+}
+
+static struct global_attr low_power_rate_attr = __ATTR(low_power_rate,
+		     0644, show_low_power_rate, store_low_power_rate);
+
 
 static struct attribute *interactive_attributes[] = {
 	&input_boost_freq_attr.attr,
