@@ -145,10 +145,12 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 1, 1209600, PLL_2, 3, 0, UINT_MAX, 1025, VDD_RAW(1025), &pll2_tbl[3]},
 	{ 1, 1305600, PLL_2, 3, 0, UINT_MAX, 1050, VDD_RAW(1050), &pll2_tbl[4]},
 	{ 1, 1401600, PLL_2, 3, 0, UINT_MAX, 1075, VDD_RAW(1075), &pll2_tbl[5]},
+#ifdef CONFIG_MSM_CPU_FREQ_OVERCLOCKING
 	{ 1, 1516800, PLL_2, 3, 0, UINT_MAX, 1125, VDD_RAW(1125), &pll2_tbl[6]},
 	{ 1, 1612800, PLL_2, 3, 0, UINT_MAX, 1175, VDD_RAW(1175), &pll2_tbl[7]},
 	{ 1, 1708800, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[8]},
 	{ 1, 1804800, PLL_2, 3, 0, UINT_MAX, 1325, VDD_RAW(1325), &pll2_tbl[9]},
+#endif
 	{ 0 }
 };
 #else
@@ -172,21 +174,41 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 1, 1209600, PLL_2, 3, 0, UINT_MAX, 1150, VDD_RAW(1150), &pll2_tbl[3]},
 	{ 1, 1305600, PLL_2, 3, 0, UINT_MAX, 1175, VDD_RAW(1175), &pll2_tbl[4]},
 	{ 1, 1401600, PLL_2, 3, 0, UINT_MAX, 1200, VDD_RAW(1200), &pll2_tbl[5]},
+#ifdef CONFIG_MSM_CPU_FREQ_OVERCLOCKING
 	{ 1, 1516800, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[6]},
 	{ 1, 1612800, PLL_2, 3, 0, UINT_MAX, 1275, VDD_RAW(1275), &pll2_tbl[7]},
 	{ 1, 1708800, PLL_2, 3, 0, UINT_MAX, 1300, VDD_RAW(1300), &pll2_tbl[8]},
 	{ 1, 1804800, PLL_2, 3, 0, UINT_MAX, 1325, VDD_RAW(1325), &pll2_tbl[9]},
+#endif
 	{ 0 }
 };
 #endif
 
-#define MAX_CLK 1516800
+#define POWER_COLLAPSE_KHZ MAX_AXI_KHZ
+unsigned long acpuclk_power_collapse(void)
+{
+	int ret = acpuclk_get_rate(smp_processor_id());
+	acpuclk_set_rate(smp_processor_id(), POWER_COLLAPSE_KHZ, SETRATE_PC);
+	return ret;
+}
+
+#define WAIT_FOR_IRQ_KHZ MAX_AXI_KHZ
+unsigned long acpuclk_wait_for_irq(void)
+{
+	int ret = acpuclk_get_rate(smp_processor_id());
+	acpuclk_set_rate(smp_processor_id(), WAIT_FOR_IRQ_KHZ, SETRATE_SWFI);
+	return ret;
+}
+
+/* Function for Ancora devices */
+#define MAX_CLK 1401600
 unsigned long acpuclk_usr_set_max(void)
 {
 	int ret = acpuclk_get_rate(smp_processor_id());
 	acpuclk_set_rate(smp_processor_id(), MAX_CLK, SETRATE_CPUFREQ);
 	return ret;
 }
+/* End function for Ancora devices */
 
 static int acpuclk_set_acpu_vdd(struct clkctl_acpu_speed *s)
 {

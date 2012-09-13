@@ -1409,12 +1409,20 @@ config MSM_CPU_FREQ_MIN
 
 config MSM_CPU_FREQ_EXTREME_UV
 	bool "Enable Extreme Undervolt frequency mode"
-	default n
+	depends on ARCH_MSM7X30
+	default n	
 	help
 	  Enabling this option change all voltage of all frequency for the extreme undervolt.
 
 	  If unsure, say N.
 	  
+config MSM_CPU_FREQ_OVERCLOCKING
+	bool "Enable support for CPU overclocking"
+	depends on ARCH_MSM7X30
+	default y
+	help
+	  Enabling this option allow to use all overclock frequencies.
+
 endif # CPU_FREQ_MSM
 
 config MSM_CPU_AVS
