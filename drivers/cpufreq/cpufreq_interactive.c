@@ -259,19 +259,47 @@ static void cpufreq_interactive_timer(unsigned long data)
 	else
 		cpu_load = 100 * (delta_time - delta_idle) / delta_time;
 
-	if ((cpu_load >= go_hispeed_load) &&
-	    pcpu->target_freq < hispeed_freq)
-		new_freq = hispeed_freq;
-	else
-		new_freq = choose_freq(pcpu, cpu_load);
+	delta_idle = (unsigned int) cputime64_sub(now_idle,
+						pcpu->target_set_time_in_idle);
+	delta_time = (unsigned int) cputime64_sub(pcpu->timer_run_time,
+						  pcpu->target_set_time);
 
-	if (pcpu->target_freq >= hispeed_freq &&
-	    new_freq > pcpu->target_freq &&
-	    now - pcpu->hispeed_validate_time < above_hispeed_delay_val) {
-		trace_cpufreq_interactive_notyet(
-			data, cpu_load, pcpu->target_freq,
-			pcpu->policy->cur, new_freq);
-		goto rearm;
+	if ((delta_time == 0) || (delta_idle > delta_time))
+		load_since_change = 0;
+	else
+		load_since_change =
+			100 * (delta_time - delta_idle) / delta_time;
+
+	/*
+	 * Choose greater of short-term load (since last idle timer
+	 * started or timer function re-armed itself) or long-term load
+	 * (since last frequency change).
+	 */
+	if (load_since_change > cpu_load)
+		cpu_load = load_since_change;
+
+	if (cpu_load >= go_hispeed_load || boost_val) {
+		if (pcpu->target_freq <= pcpu->policy->min) {
+			new_freq = hispeed_freq;
+		} else {
+			new_freq = pcpu->policy->max * cpu_load / 100;
+
+			if (new_freq < hispeed_freq)
+				new_freq = hispeed_freq;
+
+			if (pcpu->target_freq == hispeed_freq &&
+			    new_freq > hispeed_freq &&
+			    cputime64_sub(pcpu->timer_run_time,
+					  pcpu->hispeed_validate_time)
+			    < above_hispeed_delay_val) {
+				trace_cpufreq_interactive_notyet(data, cpu_load,
+								 pcpu->target_freq,
+								 new_freq);
+				goto rearm;
+			}
+		}
+	} else {
+		new_freq = pcpu->policy->max * cpu_load / 100;
 	}
 
 	pcpu->hispeed_validate_time = now;
@@ -341,59 +369,6 @@ rearm:
 
 exit:
 	return;
-}
-
-static void cpufreq_interactive_tune(struct work_struct *work)
-{
-	unsigned int cpu;
-	cpumask_t tmp_mask;
-	unsigned long flags;
-	struct cpufreq_interactive_cpuinfo *pcpu;
-
-	unsigned int max_total_avg_load = 0;
-	unsigned int index;
-
-	spin_lock_irqsave(&tune_cpumask_lock, flags);
-	tmp_mask = tune_cpumask;
-	cpumask_clear(&tune_cpumask);
-	spin_unlock_irqrestore(&tune_cpumask_lock, flags);
-
-	for_each_cpu(cpu, &tmp_mask) {
-		unsigned int j;
-
-		pcpu = &per_cpu(cpuinfo, cpu);
-		smp_rmb();
-
-		if (!pcpu->governor_enabled)
-			continue;
-
-		for_each_cpu(j, pcpu->policy->cpus) {
-			struct cpufreq_interactive_cpuinfo *pjcpu =
-					&per_cpu(cpuinfo, j);
-
-			if (pjcpu->total_avg_load > max_total_avg_load)
-				max_total_avg_load = pjcpu->total_avg_load;
-		}
-
-		if ((max_total_avg_load > hi_perf_threshold)
-				&& (cur_tune_value != HIGH_PERF_TUNE)) {
-				cur_tune_value = HIGH_PERF_TUNE;
-				go_hispeed_load = MIN_GO_HISPEED_LOAD;
-				min_sample_time = MAX_MIN_SAMPLE_TIME;
-				hispeed_freq = pcpu->policy->max;
-		} else if ((max_total_avg_load < low_power_threshold)
-				&& (cur_tune_value != LOW_POWER_TUNE)) {
-			/* Boost down the performance */
-				go_hispeed_load = DEFAULT_GO_HISPEED_LOAD;
-				min_sample_time = DEFAULT_MIN_SAMPLE_TIME;
-				cpufreq_frequency_table_target(pcpu->policy,
-					pcpu->freq_table, pcpu->policy->min,
-					CPUFREQ_RELATION_H, &index);
-				hispeed_freq =
-					pcpu->freq_table[index+1].frequency;
-				cur_tune_value = LOW_POWER_TUNE;
-		}
-	}
 }
 
 static void cpufreq_interactive_idle_start(void)
@@ -804,137 +779,6 @@ static ssize_t store_boostpulse(struct kobject *kobj, struct attribute *attr,
 static struct global_attr boostpulse =
 	__ATTR(boostpulse, 0200, NULL, store_boostpulse);
 
-static ssize_t show_sampling_periods(struct kobject *kobj,
-			struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", sampling_periods);
-}
-
-static ssize_t store_sampling_periods(struct kobject *kobj,
-			struct attribute *attr, const char *buf, size_t count)
-{
-	int ret;
-	unsigned int val, t_mask = 0;
-	unsigned int *temp;
-	unsigned int j, i;
-	struct cpufreq_interactive_cpuinfo *pcpu;
-
-	ret = sscanf(buf, "%u", &val);
-	if (ret != 1)
-		return ret;
-
-	if (val == sampling_periods)
-		return count;
-
-	for_each_present_cpu(j) {
-		pcpu = &per_cpu(cpuinfo, j);
-		ret = del_timer_sync(&pcpu->cpu_timer);
-		if (ret)
-			t_mask |= BIT(j);
-		pcpu->history_load_index = 0;
-
-		temp = kmalloc((sizeof(unsigned int) * val), GFP_KERNEL);
-		if (!temp) {
-			pr_err("%s:can't allocate memory for history\n",
-					__func__);
-			count = -ENOMEM;
-			goto out;
-		}
-		memcpy(temp, pcpu->load_history,
-			(min(sampling_periods, val) * sizeof(unsigned int)));
-		if (val > sampling_periods)
-			for (i = sampling_periods; i < val; i++)
-				temp[i] = 50;
-
-		kfree(pcpu->load_history);
-		pcpu->load_history = temp;
-	}
-
-out:
-	if (!(count < 0 && val > sampling_periods))
-		sampling_periods = val;
-
-	for_each_online_cpu(j) {
-		pcpu = &per_cpu(cpuinfo, j);
-		if (t_mask & BIT(j))
-			mod_timer(&pcpu->cpu_timer,
-				jiffies + usecs_to_jiffies(timer_rate));
-	}
-
-	return count;
-}
-
-static struct global_attr sampling_periods_attr = __ATTR(sampling_periods,
-			0644, show_sampling_periods, store_sampling_periods);
-
-static ssize_t show_hi_perf_threshold(struct kobject *kobj,
-			struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", hi_perf_threshold);
-}
-
-static ssize_t store_hi_perf_threshold(struct kobject *kobj,
-			struct attribute *attr, const char *buf, size_t count)
-{
-	int ret;
-	unsigned long val;
-
-	ret = strict_strtoul(buf, 0, &val);
-	if (ret < 0)
-		return ret;
-	hi_perf_threshold = val;
-	return count;
-}
-
-static struct global_attr hi_perf_threshold_attr = __ATTR(hi_perf_threshold,
-			0644, show_hi_perf_threshold, store_hi_perf_threshold);
-
-
-static ssize_t show_low_power_threshold(struct kobject *kobj,
-			struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", low_power_threshold);
-}
-
-static ssize_t store_low_power_threshold(struct kobject *kobj,
-			struct attribute *attr, const char *buf, size_t count)
-{
-	int ret;
-	unsigned long val;
-
-	ret = strict_strtoul(buf, 0, &val);
-	if (ret < 0)
-		return ret;
-	low_power_threshold = val;
-	return count;
-}
-
-static struct global_attr low_power_threshold_attr = __ATTR(low_power_threshold,
-		     0644, show_low_power_threshold, store_low_power_threshold);
-
-static ssize_t show_low_power_rate(struct kobject *kobj,
-			struct attribute *attr, char *buf)
-{
-	return sprintf(buf, "%u\n", low_power_rate);
-}
-
-static ssize_t store_low_power_rate(struct kobject *kobj,
-			struct attribute *attr, const char *buf, size_t count)
-{
-	int ret;
-	unsigned long val;
-
-	ret = strict_strtoul(buf, 0, &val);
-	if (ret < 0)
-		return ret;
-	low_power_rate = val;
-	return count;
-}
-
-static struct global_attr low_power_rate_attr = __ATTR(low_power_rate,
-		     0644, show_low_power_rate, store_low_power_rate);
-
-
 static struct attribute *interactive_attributes[] = {
 	&input_boost_freq_attr.attr,
 	&target_loads_attr.attr,
@@ -1025,6 +869,14 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 			pcpu->governor_enabled = 0;
 			smp_wmb();
 			del_timer_sync(&pcpu->cpu_timer);
+
+			/*
+			 * Reset idle exit time since we may cancel the timer
+			 * before it can run after the last idle exit time,
+			 * to avoid tripping the check in idle exit for a timer
+			 * that is trying to run.
+			 */
+			pcpu->idle_exit_time = 0;
 		}
 
 		if (atomic_dec_return(&active_count) > 0)
@@ -1075,13 +927,13 @@ static int __init cpufreq_interactive_init(void)
 		pcpu->cpu_timer.data = i;
 	}
 
-	spin_lock_init(&target_loads_lock);
-	spin_lock_init(&speedchange_cpumask_lock);
-	speedchange_task =
-		kthread_create(cpufreq_interactive_speedchange_task, NULL,
-			       "cfinteractive");
-	if (IS_ERR(speedchange_task))
-		return PTR_ERR(speedchange_task);
+    spin_lock_init(&speedchange_cpumask_lock);
+
+    speedchange_task =
+        kthread_create(cpufreq_interactive_speedchange_task, NULL,
+                "cfinteractive");
+    if (IS_ERR(speedchange_task))
+        return PTR_ERR(speedchange_task);        
 
 	sched_setscheduler_nocheck(speedchange_task, SCHED_FIFO, &param);
 	get_task_struct(speedchange_task);
