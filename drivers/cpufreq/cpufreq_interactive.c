@@ -64,6 +64,8 @@ static unsigned int hispeed_freq;
 /* Frequency bump when the device detects a touch input */
 static unsigned int input_boost_freq = 537600;
 
+static u64 input_boost_freq = 1036800;
+
 /* Go to hi speed when CPU load at or above this value. */
 #define DEFAULT_GO_HISPEED_LOAD 85
 static unsigned long go_hispeed_load;
@@ -525,7 +527,7 @@ static void cpufreq_interactive_boost(void)
 static ssize_t show_input_boost_freq(struct kobject *kobj,
 				 struct attribute *attr, char *buf)
 {
-	return sprintf(buf, "%u\n", input_boost_freq);
+	return sprintf(buf, "%llu\n", input_boost_freq);
 }
 
 static ssize_t store_input_boost_freq(struct kobject *kobj,
@@ -533,9 +535,11 @@ static ssize_t store_input_boost_freq(struct kobject *kobj,
 				  size_t count)
 {
 	int ret;
-	long unsigned int val;
 
-	ret = strict_strtoul(buf, 0, &val);
+	u64 val;
+
+	ret = strict_strtoull(buf, 0, &val);
+
 	if (ret < 0)
 		return ret;
 	input_boost_freq = val;
@@ -544,80 +548,6 @@ static ssize_t store_input_boost_freq(struct kobject *kobj,
 
 static struct global_attr input_boost_freq_attr = __ATTR(input_boost_freq, 0644,
 		show_input_boost_freq, store_input_boost_freq);
-
-static ssize_t show_target_loads(
-	struct kobject *kobj, struct attribute *attr, char *buf)
-{
-	int i;
-	ssize_t ret = 0;
-
-	spin_lock(&target_loads_lock);
-
-	for (i = 0; i < ntarget_loads; i++)
-		ret += sprintf(buf + ret, "%u%s", target_loads[i],
-			       i & 0x1 ? ":" : " ");
-
-	ret += sprintf(buf + ret, "\n");
-	spin_unlock(&target_loads_lock);
-	return ret;
-}
-
-static ssize_t store_target_loads(
-	struct kobject *kobj, struct attribute *attr, const char *buf,
-	size_t count)
-{
-	int ret;
-	const char *cp;
-	unsigned int *new_target_loads = NULL;
-	int ntokens = 1;
-	int i;
-
-	cp = buf;
-	while ((cp = strpbrk(cp + 1, " :")))
-		ntokens++;
-
-	if (!(ntokens & 0x1))
-		goto err_inval;
-
-	new_target_loads = kmalloc(ntokens * sizeof(unsigned int), GFP_KERNEL);
-	if (!new_target_loads) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	cp = buf;
-	i = 0;
-	while (i < ntokens) {
-		if (sscanf(cp, "%u", &new_target_loads[i++]) != 1)
-			goto err_inval;
-
-		cp = strpbrk(cp, " :");
-		if (!cp)
-			break;
-		cp++;
-	}
-
-	if (i != ntokens)
-		goto err_inval;
-
-	spin_lock(&target_loads_lock);
-	if (target_loads != default_target_loads)
-		kfree(target_loads);
-	target_loads = new_target_loads;
-	ntarget_loads = ntokens;
-	spin_unlock(&target_loads_lock);
-	return count;
-
-err_inval:
-	ret = -EINVAL;
-err:
-	kfree(new_target_loads);
-	return ret;
-}
-
-static struct global_attr target_loads_attr =
-	__ATTR(target_loads, S_IRUGO | S_IWUSR,
-		show_target_loads, store_target_loads);
 
 static ssize_t show_hispeed_freq(struct kobject *kobj,
 				 struct attribute *attr, char *buf)
@@ -781,7 +711,6 @@ static struct global_attr boostpulse =
 
 static struct attribute *interactive_attributes[] = {
 	&input_boost_freq_attr.attr,
-	&target_loads_attr.attr,
 	&hispeed_freq_attr.attr,
 	&go_hispeed_load_attr.attr,
 	&above_hispeed_delay.attr,
