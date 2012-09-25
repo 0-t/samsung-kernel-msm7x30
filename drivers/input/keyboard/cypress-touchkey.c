@@ -666,10 +666,11 @@ static void notify_led_on(void) {
 	i2c_touchkey_write_byte(devdata_global, devdata_global->backlight_on);
 	bl_on = 1;
 
-   if( !wake_lock_active(&bln_wake_lock) && bl_wakelock ){
-        printk(KERN_DEBUG "[TouchKey] touchkey get wake_lock\n");
-        wake_lock(&bln_wake_lock);
+   if( wake_lock_active(&bln_wake_lock) ){
+        printk(KERN_DEBUG "[TouchKey] touchkey clear wake_lock\n");
+        wake_unlock(&bln_wake_lock);
     }
+
         up(&enable_sem);
 
 	bl_set_timeout();
@@ -695,9 +696,9 @@ static void notify_led_off(void) {
 	bl_on = 0;
 
 	/* we were using a wakelock, unlock it */
-    if( wake_lock_active(&bln_wake_lock) ){
-        printk(KERN_DEBUG "[TouchKey] touchkey clear wake_lock\n");
-        wake_unlock(&bln_wake_lock);
+    if( !wake_lock_active(&bln_wake_lock) ){
+        printk(KERN_DEBUG "[TouchKey] touchkey get wake_lock\n");
+        wake_lock(&bln_wake_lock);
     }
 
 	up(&enable_sem);
@@ -987,6 +988,7 @@ static int __devexit i2c_touchkey_remove(struct i2c_client *client)
 	struct cypress_touchkey_devdata *devdata = i2c_get_clientdata(client);
 
 	misc_deregister(&bl_led_device);
+	wake_lock_destroy(&bln_wake_lock);
 
 	wake_lock_destroy(&bln_wake_lock);
 
