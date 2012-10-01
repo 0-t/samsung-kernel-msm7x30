@@ -102,7 +102,9 @@ static struct pll pll2_tbl[] = {
 	{83, 1, 3, 0 },		/* 1612 MHz */
 	{88, 1, 3, 0 },		/* 1708 MHz */
 	{93, 1, 3, 0 },		/* 1804 MHz */
-/*	{98, 1, 3, 0 },     /  1881 MHz */
+#ifdef CONFIG_MSM_CPU_FREQ_EXTREME_OVERCLOCKING
+	{98, 1, 3, 0 },     /* 1881 MHz */
+#endif
 };
 
 /* Use negative numbers for sources that can't be enabled/disabled */
@@ -151,6 +153,9 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 1, 1612800, PLL_2, 3, 0, UINT_MAX, 1200, VDD_RAW(1200), &pll2_tbl[7]},
 	{ 1, 1708800, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[8]},
 	{ 1, 1804800, PLL_2, 3, 0, UINT_MAX, 1325, VDD_RAW(1325), &pll2_tbl[9]},
+#ifdef CONFIG_MSM_CPU_FREQ_EXTREME_OVERCLOCKING
+	{ 1, 1881600, PLL_2, 3, 0, UINT_MAX, 1350, VDD_RAW(1350), &pll2_tbl[10]},
+#endif
 #endif
 	{ 0 }
 };
@@ -180,12 +185,15 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 1, 1612800, PLL_2, 3, 0, UINT_MAX, 1275, VDD_RAW(1275), &pll2_tbl[7]},
 	{ 1, 1708800, PLL_2, 3, 0, UINT_MAX, 1300, VDD_RAW(1300), &pll2_tbl[8]},
 	{ 1, 1804800, PLL_2, 3, 0, UINT_MAX, 1325, VDD_RAW(1325), &pll2_tbl[9]},
+#ifdef CONFIG_MSM_CPU_FREQ_EXTREME_OVERCLOCKING
+	{ 1, 1881600, PLL_2, 3, 0, UINT_MAX, 1350, VDD_RAW(1350), &pll2_tbl[10]},
+#endif
 #endif
 	{ 0 }
 };
 #endif
 
-#define MAX_CLK 1804800
+#define MAX_CLK 1881600
 unsigned long acpuclk_usr_set_max(void)
 {
 	int ret = acpuclk_get_rate(smp_processor_id());

@@ -1423,6 +1423,14 @@ config MSM_CPU_FREQ_OVERCLOCKING
 	help
 	  Enabling this option allow to use all overclock frequencies.
 
+config MSM_CPU_FREQ_EXTREME_OVERCLOCKING
+	bool "Enable 1881mhz CPU overclocking"
+	depends on ARCH_MSM7X30
+	default n
+	help
+	  Enabling this option allow to use 1881mhz overclock frequency.
+	  Warning: prolonged use of this frequency cause instability of system!
+
 endif # CPU_FREQ_MSM
 
 config MSM_CPU_AVS
