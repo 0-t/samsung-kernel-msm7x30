@@ -61,9 +61,6 @@ static spinlock_t speedchange_cpumask_lock;
 /* Hi speed to bump to from lo speed when load burst (default max) */
 static unsigned int hispeed_freq;
 
-/* Frequency bump when the device detects a touch input */
-static unsigned int input_boost_freq = 537600;
-
 static u64 input_boost_freq = 1036800;
 
 /* Go to hi speed when CPU load at or above this value. */
@@ -302,7 +299,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 			}
 		}
 	} else {
-		new_freq = pcpu->policy->max * cpu_load / 100;
+		new_freq = hispeed_freq * cpu_load / 100;
 	}
 
 	pcpu->hispeed_validate_time = now;
