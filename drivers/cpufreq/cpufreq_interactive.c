@@ -41,7 +41,9 @@ struct cpufreq_interactive_cpuinfo {
 	struct timer_list cpu_timer;
 	int timer_idlecancel;
 	u64 time_in_idle;
-	u64 time_in_idle_timestamp;
+	u64 idle_exit_time;
+	u64 target_set_time;
+	u64 target_set_time_in_idle;
 	struct cpufreq_policy *policy;
 	struct cpufreq_frequency_table *freq_table;
 	unsigned int target_freq;
@@ -239,9 +241,12 @@ static void cpufreq_interactive_timer(unsigned long data)
 	if (!pcpu->governor_enabled)
 		goto exit;
 
+	time_in_idle = pcpu->time_in_idle;
+	idle_exit_time = pcpu->idle_exit_time;
+
 	now_idle = get_cpu_idle_time_us(data, &now);
-	delta_idle = (unsigned int)(now_idle - pcpu->time_in_idle);
-	delta_time = (unsigned int)(now - pcpu->time_in_idle_timestamp);
+	delta_idle = (unsigned int)(now_idle - time_in_idle);
+	delta_time = (unsigned int)(now - idle_exit_time);
 
 	/*
 	 * If timer ran less than 1ms after short-term sample started, retry.
@@ -254,10 +259,8 @@ static void cpufreq_interactive_timer(unsigned long data)
 	else
 		cpu_load = 100 * (delta_time - delta_idle) / delta_time;
 
-	delta_idle = (unsigned int) cputime64_sub(now_idle,
-						pcpu->target_set_time_in_idle);
-	delta_time = (unsigned int) cputime64_sub(pcpu->timer_run_time,
-						  pcpu->target_set_time);
+	delta_idle = (unsigned int)(now_idle - pcpu->target_set_time_in_idle);
+	delta_time = (unsigned int)(now - pcpu->target_set_time);
 
 	if ((delta_time == 0) || (delta_idle > delta_time))
 		load_since_change = 0;
@@ -285,8 +288,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 
 			if (pcpu->target_freq == hispeed_freq &&
 			    new_freq > hispeed_freq &&
-			    cputime64_sub(pcpu->timer_run_time,
-					  pcpu->hispeed_validate_time)
+			    now - pcpu->hispeed_validate_time
 			    < above_hispeed_delay_val) {
 				trace_cpufreq_interactive_notyet(data, cpu_load,
 								 pcpu->target_freq,
@@ -298,7 +300,8 @@ static void cpufreq_interactive_timer(unsigned long data)
 		new_freq = hispeed_freq * cpu_load / 100;
 	}
 
-	pcpu->hispeed_validate_time = now;
+	if (new_freq <= hispeed_freq)
+		pcpu->hispeed_validate_time = now;
 
 	if (cpufreq_frequency_table_target(pcpu->policy, pcpu->freq_table,
 					   new_freq, CPUFREQ_RELATION_L,
@@ -316,9 +319,9 @@ static void cpufreq_interactive_timer(unsigned long data)
 	 */
 	if (new_freq < pcpu->floor_freq) {
 		if (now - pcpu->floor_validate_time < min_sample_time) {
-			trace_cpufreq_interactive_notyet(
-				data, cpu_load, pcpu->target_freq,
-				pcpu->policy->cur, new_freq);
+			trace_cpufreq_interactive_notyet(data, cpu_load,
+					 pcpu->target_freq, new_freq);
+
 			goto rearm;
 		}
 	}
@@ -334,8 +337,9 @@ static void cpufreq_interactive_timer(unsigned long data)
 	}
 
 	trace_cpufreq_interactive_target(data, cpu_load, pcpu->target_freq,
-					 pcpu->policy->cur, new_freq);
-
+					 new_freq);
+	pcpu->target_set_time_in_idle = now_idle;
+	pcpu->target_set_time = now;
 	pcpu->target_freq = new_freq;
     spin_lock_irqsave(&speedchange_cpumask_lock, flags);
     cpumask_set_cpu(data, &speedchange_cpumask);
@@ -353,14 +357,16 @@ rearm_if_notmax:
 rearm:
 	if (!timer_pending(&pcpu->cpu_timer)) {
 		/*
-		 * If governing speed in idle and already at min, cancel the
-		 * timer if that CPU goes idle.  We don't need to re-evaluate
-		 * speed until the next idle exit.
+		 * If already at min, cancel the timer if that CPU goes idle.
+		 * We don't need to re-evaluate speed until the next idle exit.
 		 */
-		if (governidle && pcpu->target_freq == pcpu->policy->min)
+		if (pcpu->target_freq == pcpu->policy->min)
 			pcpu->timer_idlecancel = 1;
 
-		cpufreq_interactive_timer_resched(pcpu);
+		pcpu->time_in_idle = get_cpu_idle_time_us(
+			data, &pcpu->idle_exit_time);
+		mod_timer_pinned(&pcpu->cpu_timer,
+			jiffies + usecs_to_jiffies(timer_rate));
 	}
 
 exit:
@@ -389,7 +395,9 @@ static void cpufreq_interactive_idle_start(void)
 		 */
 		if (!pending) {
 			pcpu->timer_idlecancel = 0;
-			cpufreq_interactive_timer_resched(pcpu);
+			mod_timer_pinned(	
+        		&pcpu->cpu_timer,	
+        		jiffies + usecs_to_jiffies(timer_rate));
 		}
 	} else if (governidle) {
 		/*
@@ -416,12 +424,13 @@ static void cpufreq_interactive_idle_end(void)
     
 	/* Arm the timer for 1-2 ticks later if not already. */
 	if (!timer_pending(&pcpu->cpu_timer)) {
+		pcpu->time_in_idle =
+			get_cpu_idle_time_us(smp_processor_id(),
+					     &pcpu->idle_exit_time);
 		pcpu->timer_idlecancel = 0;
-		cpufreq_interactive_timer_resched(pcpu);
-	} else if (!governidle &&
-		   time_after_eq(jiffies, pcpu->cpu_timer.expires)) {
-		del_timer(&pcpu->cpu_timer);
-		cpufreq_interactive_timer(smp_processor_id());
+		mod_timer_pinned(
+			&pcpu->cpu_timer,
+			jiffies + usecs_to_jiffies(timer_rate));
 	}
 }
 
@@ -762,14 +771,6 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 			pcpu->governor_enabled = 0;
 			smp_wmb();
 			del_timer_sync(&pcpu->cpu_timer);
-
-			/*
-			 * Reset idle exit time since we may cancel the timer
-			 * before it can run after the last idle exit time,
-			 * to avoid tripping the check in idle exit for a timer
-			 * that is trying to run.
-			 */
-			pcpu->idle_exit_time = 0;
 		}
 
 		if (atomic_dec_return(&active_count) > 0)
