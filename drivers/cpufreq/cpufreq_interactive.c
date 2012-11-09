@@ -41,7 +41,7 @@ struct cpufreq_interactive_cpuinfo {
 	struct timer_list cpu_timer;
 	int timer_idlecancel;
 	u64 time_in_idle;
-	u64 idle_exit_time;
+	u64 time_in_idle_timestamp;
 	u64 target_set_time;
 	u64 target_set_time_in_idle;
 	struct cpufreq_policy *policy;
@@ -124,116 +124,14 @@ static void cpufreq_interactive_timer_resched(
 				     &pcpu->time_in_idle_timestamp);
 }
 
-static unsigned int freq_to_targetload(unsigned int freq)
-{
-	int i;
-	unsigned int ret;
-
-	spin_lock(&target_loads_lock);
-
-	for (i = 0; i < ntarget_loads - 1 && freq >= target_loads[i+1]; i += 2)
-		;
-
-	ret = target_loads[i];
-	spin_unlock(&target_loads_lock);
-	return ret;
-}
-
-/*
- * If increasing frequencies never map to a lower target load then
- * choose_freq() will find the minimum frequency that does not exceed its
- * target load given the current load.
- */
-
-static unsigned int choose_freq(
-	struct cpufreq_interactive_cpuinfo *pcpu, unsigned int curload)
-{
-	unsigned int freq = pcpu->policy->cur;
-	unsigned int loadadjfreq = freq * curload;
-	unsigned int prevfreq, freqmin, freqmax;
-	unsigned int tl;
-	int index;
-
-	freqmin = 0;
-	freqmax = UINT_MAX;
-
-	do {
-		prevfreq = freq;
-		tl = freq_to_targetload(freq);
-
-		/*
-		 * Find the lowest frequency where the computed load is less
-		 * than or equal to the target load.
-		 */
-
-		cpufreq_frequency_table_target(
-			pcpu->policy, pcpu->freq_table, loadadjfreq / tl,
-			CPUFREQ_RELATION_L, &index);
-		freq = pcpu->freq_table[index].frequency;
-
-		if (freq > prevfreq) {
-			/* The previous frequency is too low. */
-			freqmin = prevfreq;
-
-			if (freq >= freqmax) {
-				/*
-				 * Find the highest frequency that is less
-				 * than freqmax.
-				 */
-				cpufreq_frequency_table_target(
-					pcpu->policy, pcpu->freq_table,
-					freqmax - 1, CPUFREQ_RELATION_H,
-					&index);
-				freq = pcpu->freq_table[index].frequency;
-
-				if (freq == freqmin) {
-					/*
-					 * The first frequency below freqmax
-					 * has already been found to be too
-					 * low.  freqmax is the lowest speed
-					 * we found that is fast enough.
-					 */
-					freq = freqmax;
-					break;
-				}
-			}
-		} else if (freq < prevfreq) {
-			/* The previous frequency is high enough. */
-			freqmax = prevfreq;
-
-			if (freq <= freqmin) {
-				/*
-				 * Find the lowest frequency that is higher
-				 * than freqmin.
-				 */
-				cpufreq_frequency_table_target(
-					pcpu->policy, pcpu->freq_table,
-					freqmin + 1, CPUFREQ_RELATION_L,
-					&index);
-				freq = pcpu->freq_table[index].frequency;
-
-				/*
-				 * If freqmax is the first frequency above
-				 * freqmin then we have already found that
-				 * this speed is fast enough.
-				 */
-				if (freq == freqmax)
-					break;
-			}
-		}
-
-		/* If same frequency chosen as previous then done. */
-	} while (freq != prevfreq);
-
-	return freq;
-}
-
 static void cpufreq_interactive_timer(unsigned long data)
 {
 	u64 now;
 	unsigned int delta_idle;
 	unsigned int delta_time;
 	int cpu_load;
+	int load_since_change;
+
 	struct cpufreq_interactive_cpuinfo *pcpu =
 		&per_cpu(cpuinfo, data);
 	u64 now_idle;
@@ -246,12 +144,9 @@ static void cpufreq_interactive_timer(unsigned long data)
 	if (!pcpu->governor_enabled)
 		goto exit;
 
-	time_in_idle = pcpu->time_in_idle;
-	idle_exit_time = pcpu->idle_exit_time;
-
 	now_idle = get_cpu_idle_time_us(data, &now);
-	delta_idle = (unsigned int)(now_idle - time_in_idle);
-	delta_time = (unsigned int)(now - idle_exit_time);
+	delta_idle = (unsigned int)(now_idle - pcpu->time_in_idle);
+	delta_time = (unsigned int)(now - pcpu->time_in_idle_timestamp);
 
 	/*
 	 * If timer ran less than 1ms after short-term sample started, retry.
@@ -369,10 +264,7 @@ rearm:
 		if (governidle && pcpu->target_freq == pcpu->policy->min)
 			pcpu->timer_idlecancel = 1;
 
-		pcpu->time_in_idle = get_cpu_idle_time_us(
-			data, &pcpu->idle_exit_time);
-		mod_timer_pinned(&pcpu->cpu_timer,
-			jiffies + usecs_to_jiffies(timer_rate));
+		cpufreq_interactive_timer_resched(pcpu);
 	}
 
 exit:
@@ -401,9 +293,7 @@ static void cpufreq_interactive_idle_start(void)
 		 */
 		if (!pending) {
 			pcpu->timer_idlecancel = 0;
-			mod_timer_pinned(	
-        		&pcpu->cpu_timer,	
-        		jiffies + usecs_to_jiffies(timer_rate));
+			cpufreq_interactive_timer_resched(pcpu);
 		}
 	} else if (governidle) {
 		/*
@@ -430,13 +320,12 @@ static void cpufreq_interactive_idle_end(void)
     
 	/* Arm the timer for 1-2 ticks later if not already. */
 	if (!timer_pending(&pcpu->cpu_timer)) {
-		pcpu->time_in_idle =
-			get_cpu_idle_time_us(smp_processor_id(),
-					     &pcpu->idle_exit_time);
 		pcpu->timer_idlecancel = 0;
-		mod_timer_pinned(
-			&pcpu->cpu_timer,
-			jiffies + usecs_to_jiffies(timer_rate));
+		cpufreq_interactive_timer_resched(pcpu);
+	} else if (!governidle &&
+		   time_after_eq(jiffies, pcpu->cpu_timer.expires)) {
+		del_timer(&pcpu->cpu_timer);
+		cpufreq_interactive_timer(smp_processor_id());
 	}
 }
 
