@@ -96,6 +96,11 @@ static unsigned long timer_rate;
 #define DEFAULT_ABOVE_HISPEED_DELAY DEFAULT_TIMER_RATE
 static unsigned long above_hispeed_delay_val;
 
+static bool governidle;
+module_param(governidle, bool, S_IWUSR | S_IRUGO);
+MODULE_PARM_DESC(governidle,
+	"Set to 1 to wake up CPUs from idle to reduce speed (default 0)");
+
 static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		unsigned int event);
 
@@ -357,10 +362,11 @@ rearm_if_notmax:
 rearm:
 	if (!timer_pending(&pcpu->cpu_timer)) {
 		/*
-		 * If already at min, cancel the timer if that CPU goes idle.
-		 * We don't need to re-evaluate speed until the next idle exit.
+		 * If governing speed in idle and already at min, cancel the
+		 * timer if that CPU goes idle.  We don't need to re-evaluate
+		 * speed until the next idle exit.
 		 */
-		if (pcpu->target_freq == pcpu->policy->min)
+		if (governidle && pcpu->target_freq == pcpu->policy->min)
 			pcpu->timer_idlecancel = 1;
 
 		pcpu->time_in_idle = get_cpu_idle_time_us(
