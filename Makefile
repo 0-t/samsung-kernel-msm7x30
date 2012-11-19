@@ -195,7 +195,7 @@ SUBARCH := arm
 export KBUILD_BUILDHOST := $export ARCH=arm
 # export KBUILD_BUILDHOST := $(SUBARCH)
 ARCH 		?= $(SUBARCH)
-CROSS_COMPILE	?= ~/android/system/prebuilts/gcc/linux-x86/arm//android-toolchain-4.7/bin/arm-eabi-
+CROSS_COMPILE	?= ~/android/system/prebuilts/gcc/linux-x86/arm/android-toolchain-4.7/bin/arm-eabi-
 # works # CROSS_COMPILE	?= ~/android/system/prebuilt/linux-x86/toolchain/android-toolchain-4.7/bin/arm-eabi-
 # CROSS_COMPILE	?= ~/android/linaro/android-toolchain-4.7/bin/arm-eabi-
 # CROSS_COMPILE	?= arm-eabi-
