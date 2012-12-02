@@ -72,6 +72,8 @@ struct work_struct *p_batt_init;
 #include <linux/mfd/pmic8058.h>
 #include <linux/wakelock.h>
 
+#include <linux/fastchg.h>
+
 #ifdef CONFIG_WIRELESS_CHARGING
 #define IRQ_WC_DETECT PM8058_GPIO_IRQ(PMIC8058_IRQ_BASE, (PM8058_GPIO(35)))
 #define GPIO_WC_DETECT PM8058_GPIO_PM_TO_SYS(PM8058_GPIO(35))
@@ -138,7 +140,7 @@ extern bool power_down;
 #define ONCRPC_CHG_GET_GENERAL_STATUS_PROC 	12
 #define ONCRPC_CHARGER_API_VERSIONS_PROC 	0xffffffff
 
-#define BATT_RPC_TIMEOUT    5000	/* 5 sec */
+#define BATT_RPC_TIMEOUT    20000 // 5000	/* 5 sec */
 
 #define INVALID_BATT_HANDLE    -1
 
@@ -308,7 +310,7 @@ int batt_temp_adc_info = -1;
 #define BATT_TEMP_LPM_LOW_BLOCK   	1730 	// fixed 20110730  
 #define BATT_TEMP_LPM_LOW_RECOVER  	1720 
 
-#define BATT_FULL_CHARGING_VOLTAGE	(4170*VOLT_UNIT)
+#define BATT_FULL_CHARGING_VOLTAGE	(4160*VOLT_UNIT) // 4170
 #define BATT_FULL_CHARGING_CURRENT	180
 #define BATT_FULL_CHARGING_CURRENT_REV_5	380
 
@@ -587,7 +589,7 @@ static char *msm_power_supplied_to[] = {
 	"battery",
 };
 
-#define BATT_CHECK_INTERVAL	(5 * TIME_UNIT_SECOND) // every 5 sec
+#define BATT_CHECK_INTERVAL	(20 * TIME_UNIT_SECOND) // every 5 sec
 
 static unsigned int charging_start_time = 0;
 
@@ -1603,7 +1605,7 @@ static int msm_batt_check_level(int battery_level)
 	*/
 	if ( (msm_batt_info.batt_full_check == 0) && (battery_level == 100) )
 	{
-		battery_level = 99;	// not yet fully charged
+		battery_level = 100;	// not yet fully charged
 	}
 /*
 	else if ( (battery_level == 0)
@@ -2986,9 +2988,23 @@ static void msm_batt_cable_status_update(void)
 	{
 		if (charger_type == CHARGER_TYPE_USB_PC)
 		{
+        	#ifdef CONFIG_FORCE_FAST_CHARGE
+			if (force_fast_charge != 0) {
+				pr_info("cable USB forced fast charge");
+				msm_batt_info.charging_source = AC_CHG;
+				hsusb_chg_connected_ext(USB_CHG_TYPE__WALLCHARGER);
+				power_supply_changed(&msm_psy_ac);
+			} else {
+				pr_info("cable USB");
+				msm_batt_info.charging_source = USB_CHG;
+				hsusb_chg_connected_ext(USB_CHG_TYPE__SDP);
+				power_supply_changed(&msm_psy_usb);
+			}
+			#else
 			msm_batt_info.charging_source = USB_CHG;
 			hsusb_chg_connected_ext(USB_CHG_TYPE__SDP);
 			power_supply_changed(&msm_psy_usb);
+            #endif
 		}
 		else	// TA and Wireless
 		{
