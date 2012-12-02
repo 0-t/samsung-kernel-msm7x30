@@ -192,13 +192,13 @@ SUBARCH := $(shell uname -m | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 # Default value for CROSS_COMPILE is not to prefix executables
 # Note: Some architectures assign CROSS_COMPILE in their arch/*/Makefile
 SUBARCH := arm
-export KBUILD_BUILDHOST := $export ARCH=arm
-# export KBUILD_BUILDHOST := $(SUBARCH)
+# export KBUILD_BUILDHOST := $export ARCH=arm
+export KBUILD_BUILDHOST := $(SUBARCH)
 ARCH 		?= $(SUBARCH)
-CROSS_COMPILE	?= ~/android/system/prebuilts/gcc/linux-x86/arm/android-toolchain-4.7/bin/arm-eabi-
+# CROSS_COMPILE	?= ~/android/system/prebuilts/gcc/linux-x86/arm/android-toolchain-4.7/bin/arm-eabi-
 # works # CROSS_COMPILE	?= ~/android/system/prebuilt/linux-x86/toolchain/android-toolchain-4.7/bin/arm-eabi-
 # CROSS_COMPILE	?= ~/android/linaro/android-toolchain-4.7/bin/arm-eabi-
-# CROSS_COMPILE	?= arm-eabi-
+CROSS_COMPILE	?= arm-eabi-
 CROSS_COMPILE	?= $(CONFIG_CROSS_COMPILE:"%"=%)
 
 # Architecture as present in compile.h
@@ -249,8 +249,8 @@ CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
 	  else echo sh; fi ; fi)
 
-HOSTCC       = ccache gcc
-HOSTCXX      = ccache g++
+HOSTCC       = gcc
+HOSTCXX      = g++
 HOSTCFLAGS   = -Wall -Wmissing-prototypes -Wstrict-prototypes -O2 -fomit-frame-pointer
 HOSTCXXFLAGS = -O2
 
@@ -336,7 +336,7 @@ include $(srctree)/scripts/Kbuild.include
 
 AS		= $(CROSS_COMPILE)as
 LD		= $(CROSS_COMPILE)ld
-CC		= ccache $(CROSS_COMPILE)gcc
+CC		= $(CROSS_COMPILE)gcc
 CPP		= $(CC) -E
 AR		= $(CROSS_COMPILE)ar
 NM		= $(CROSS_COMPILE)nm
@@ -358,13 +358,13 @@ CHECK		= sparse
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
 
-MODFLAGS	= -DMODULE -fgcse-lm -fgcse-sm -fsched-spec-load -fforce-addr -ffast-math -fsingle-precision-constant -mtune=cortex-a8 -march=armv7-a -mfpu=neon -ftree-vectorize -funswitch-loops
+MODFLAGS	= -DMODULE
 CFLAGS_MODULE   = $(MODFLAGS)
 AFLAGS_MODULE   = $(MODFLAGS)
 LDFLAGS_MODULE  = -T $(srctree)/scripts/module-common.lds
 CFLAGS_KERNEL	=
 AFLAGS_KERNEL	=
-CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage -fgcse-lm -fgcse-sm -fsched-spec-load -fforce-addr -ffast-math -fsingle-precision-constant -mtune=cortex-a8 -march=armv7-a -mfpu=neon -ftree-vectorize -funswitch-loops
+CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
 
 # Use LINUXINCLUDE when you must reference the include/ directory.
