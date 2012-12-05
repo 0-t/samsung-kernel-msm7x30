@@ -371,15 +371,15 @@ extern struct cpufreq_governor cpufreq_gov_dynamic_interactive;
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_HOTPLUG)
 extern struct cpufreq_governor cpufreq_gov_hotplug;
 #define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_hotplug)
-#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_LAZY)
+/* #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_LAZY)
 extern struct cpufreq_governor cpufreq_gov_lazy;
-#define CPUFREQ_DEFAULT_GOVERNOR  (&cpufreq_gov_lazy)
+#define CPUFREQ_DEFAULT_GOVERNOR  (&cpufreq_gov_lazy) */
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_WHEATLEY)
 extern struct cpufreq_governor cpufreq_gov_wheatley;
 #define CPUFREQ_DEFAULT_GOVERNOR  (&cpufreq_gov_wheatley)
-#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_SMARTASS2)
+/* #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_SMARTASS2)
 extern struct cpufreq_governor cpufreq_gov_smartass2;
-#define CPUFREQ_DEFAULT_GOVERNOR  (&cpufreq_gov_smartass2)
+#define CPUFREQ_DEFAULT_GOVERNOR  (&cpufreq_gov_smartass2) */
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_LULZACTIVE)
 extern struct cpufreq_governor cpufreq_gov_lulzactive;
 #define CPUFREQ_DEFAULT_GOVERNOR (&cpufreq_gov_lulzactive)
@@ -392,15 +392,15 @@ extern struct cpufreq_governor cpufreq_gov_minmax;
 #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_LAGFREE)
 extern struct cpufreq_governor cpufreq_gov_lagfree;
 #define CPUFREQ_DEFAULT_GOVERNOR        (&cpufreq_gov_lagfree)
-#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVEX)
+/* #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVEX)
 extern struct cpufreq_governor cpufreq_gov_interactivex;
-#define CPUFREQ_DEFAULT_GOVERNOR        (&cpufreq_gov_interactivex)
-#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_INTELLIDEMAND)
+#define CPUFREQ_DEFAULT_GOVERNOR        (&cpufreq_gov_interactivex) */
+/* #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_INTELLIDEMAND)
 extern struct cpufreq_governor cpufreq_gov_intellidemand;
-#define CPUFREQ_DEFAULT_GOVERNOR (&cpufreq_gov_intellidemand)
-#elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMANDX)
+#define CPUFREQ_DEFAULT_GOVERNOR (&cpufreq_gov_intellidemand) */
+/* #elif defined(CONFIG_CPU_FREQ_DEFAULT_GOV_ONDEMANDX)
 extern struct cpufreq_governor cpufreq_gov_ondemandx;
-#define CPUFREQ_DEFAULT_GOVERNOR        (&cpufreq_gov_ondemandx)
+#define CPUFREQ_DEFAULT_GOVERNOR        (&cpufreq_gov_ondemandx) */
 #endif
 
 /*********************************************************************
