@@ -61,8 +61,8 @@ extern int charging_boot;
 #define LPM_LOW_CPU_CLK 368640
 struct clock_state {
 	struct clkctl_acpu_speed	*current_speed;
-	struct mutex			lock;
-	struct clk			*ebi1_clk;
+	struct mutex			    lock;
+	struct clk			        *ebi1_clk;
 };
 
 struct pll {
@@ -75,13 +75,13 @@ struct pll {
 struct clkctl_acpu_speed {
 	unsigned int	use_for_scaling;
 	unsigned int	acpu_clk_khz;
-	int		src;
+	int             src;
 	unsigned int	acpu_src_sel;
 	unsigned int	acpu_src_div;
 	unsigned int	axi_clk_hz;
 	unsigned int	vdd_mv;
 	unsigned int	vdd_raw;
-	struct pll	*pll_rate;
+	struct pll      *pll_rate;
 	unsigned long	lpj; /* loops_per_jiffy */
 };
 
@@ -107,9 +107,10 @@ static struct pll pll2_tbl[] = {
 
 /* Use negative numbers for sources that can't be enabled/disabled */
 
+#define SRC_LPXO (-2)
+#define SRC_AXI (-1)
+
 enum acpuclk_source {
-	LPXO	= -2,
-	AXI	= -1,
 	PLL_0	=  0,
 	PLL_1,
 	PLL_2,
