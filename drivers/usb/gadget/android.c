@@ -121,6 +121,8 @@ struct android_dev {
 	struct device *dev;
 	struct android_usb_platform_data *pdata;
 
+    void (*enable_fast_charge)(bool enable);
+
 	bool enabled;
 	int disable_depth;
 	struct mutex mutex;
