@@ -127,7 +127,6 @@ static struct clk *acpuclk_sources[MAX_SOURCE];
  * know all the h/w requirements.
  */ 
 #ifdef MSM_CPU_FREQ_EXTREME_UV
-
 static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 0, 24576,  SRC_LPXO, 0, 0,  30720000,  750, VDD_RAW(750) },
 	{ 0, 61440,  PLL_3,    5, 11, 61440000,  750, VDD_RAW(750) },
@@ -182,8 +181,7 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 };
 #endif
 
-
-#define MAX_CLK 1900800
+#define MAX_CLK 1516800
 unsigned long acpuclk_usr_set_max(void)
 {
 	int ret = acpuclk_get_rate(smp_processor_id());
@@ -581,9 +579,9 @@ void acpuclk_set_vdd(unsigned int khz, int vdd)
 	for (i = 0; acpu_freq_tbl[i].acpu_clk_khz; i++)
 	{
 			if (khz == 0)
-				new_vdd = min(max((acpu_freq_tbl[i].vdd_mv + vdd), SEMC_ACPU_MIN_UV_MV), SEMC_ACPU_MAX_UV_MV);
+				new_vdd = min(max((acpu_freq_tbl[i].vdd_mv + vdd), MIN_VDD_SC), MAX_VDD_SC);
 			else if (acpu_freq_tbl[i].acpu_clk_khz == khz)
-				new_vdd = min(max((unsigned int)vdd, SEMC_ACPU_MIN_UV_MV), SEMC_ACPU_MAX_UV_MV);
+					new_vdd = min(max((unsigned int)vdd, MIN_VDD_SC), MAX_VDD_SC);
 			else continue;
 
 			acpu_freq_tbl[i].vdd_mv = new_vdd;
