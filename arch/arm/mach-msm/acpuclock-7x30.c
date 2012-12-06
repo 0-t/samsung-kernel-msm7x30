@@ -52,11 +52,10 @@
 #define VDD_RAW(mv) (((MV(mv) / V_STEP) - 30) | VREG_DATA)
 
 #define MAX_AXI_KHZ 192000
-#define SEMC_ACPU_MIN_UV_MV 750U
-#define SEMC_ACPU_MAX_UV_MV 1450U
-
-/* #define MAX_VDD_SC  1325000
-#define MIN_VDD_SC  700000 */
+/* #define SEMC_ACPU_MIN_UV_MV 750U
+#define SEMC_ACPU_MAX_UV_MV 1450U */
+#define MAX_VDD_SC  1325000
+#define MIN_VDD_SC  700000
 
 extern int charging_boot;
 #define LPM_LOW_CPU_CLK 368640
