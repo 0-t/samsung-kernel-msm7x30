@@ -52,17 +52,15 @@
 #define VDD_RAW(mv) (((MV(mv) / V_STEP) - 30) | VREG_DATA)
 
 #define MAX_AXI_KHZ 192000
-/* #define SEMC_ACPU_MIN_UV_MV 750U
-#define SEMC_ACPU_MAX_UV_MV 1450U */
-#define MAX_VDD_SC  1325000
+#define MAX_VDD_SC  1400000
 #define MIN_VDD_SC  700000
 
 extern int charging_boot;
-#define LPM_LOW_CPU_CLK 368640
+#define LPM_LOW_CPU_CLK 245760
 struct clock_state {
-	struct clkctl_acpu_speed	*current_speed;
-	struct mutex			    lock;
-	struct clk			        *ebi1_clk;
+	struct clkctl_acpu_speed    *current_speed;
+	struct mutex                lock;
+	struct clk                  *ebi1_clk;
 };
 
 struct pll {
@@ -108,9 +106,8 @@ static struct pll pll2_tbl[] = {
 };
 
 /* Use negative numbers for sources that can't be enabled/disabled */
-
 #define SRC_LPXO (-2)
-#define SRC_AXI (-1)
+#define SRC_AXI  (-1)
 
 enum acpuclk_source {
 	PLL_0	=  0,
@@ -128,7 +125,7 @@ static struct clk *acpuclk_sources[MAX_SOURCE];
  * Do NOT change the AXI frequency unless you are _absoulutely_ sure you
  * know all the h/w requirements.
  */ 
-#ifdef MSM_CPU_FREQ_EXTREME_UV
+#ifdef CONFIG_MSM_CPU_FREQ_EXTREME_UV
 static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 0, 24576,  SRC_LPXO, 0, 0,  30720000,  750, VDD_RAW(750) },
 	{ 0, 61440,  PLL_3,    5, 11, 61440000,  750, VDD_RAW(750) },
@@ -200,7 +197,6 @@ unsigned long acpuclk_usr_set_max(void)
 	acpuclk_set_rate(smp_processor_id(), MAX_CLK, SETRATE_CPUFREQ);
 	return ret;
 }
-/* End function for Ancora devices */
 
 static int acpuclk_set_acpu_vdd(struct clkctl_acpu_speed *s)
 {
@@ -389,7 +385,7 @@ static unsigned long acpuclk_7x30_get_rate(int cpu)
 
 unsigned long clk_get_max_axi_khz(void)
 {
-return MAX_AXI_KHZ;
+	return MAX_AXI_KHZ;
 }
 EXPORT_SYMBOL(clk_get_max_axi_khz);
 
@@ -516,20 +512,11 @@ static inline void setup_cpufreq_table(void) { }
 void __init pll2_fixup(void)
 {
 	struct clkctl_acpu_speed *speed = acpu_freq_tbl;
-	u8 pll2_l = readl_relaxed(PLL2_L_VAL_ADDR) & 0xFF;
 
 	for ( ; speed->acpu_clk_khz; speed++) {
 		if (speed->src != PLL_2)
 			backup_s = speed;
-		if (speed->pll_rate && speed->pll_rate->l == pll2_l) {
-			speed++;
-			speed->acpu_clk_khz = 0;
-			return;
-		}
 	}
-
-	pr_err("Unknown PLL2 lval %d\n", pll2_l);
-	BUG();
 }
 
 #define RPM_BYPASS_MASK	(1 << 3)
@@ -573,6 +560,20 @@ struct acpuclk_soc_data acpuclk_7x30_soc_data __initdata = {
 };
 
 #ifdef CONFIG_VDD_USERSPACE
+ssize_t acpuclk_get_vdd_levels_str(char *buf)
+{
+	int i, len = 0;
+	if (buf)
+	{
+		mutex_lock(&drv_state.lock);
+		for (i = 0; acpu_freq_tbl[i].acpu_clk_khz; i++)
+		{
+            len += sprintf(buf + len, "%8u: %4d\n", acpu_freq_tbl[i].acpu_clk_khz, acpu_freq_tbl[i].vdd_mv);
+		}
+		mutex_unlock(&drv_state.lock);
+	}
+	return len;
+}
 
 ssize_t acpuclk_get_vdd_levels_str(char *buf)
 {
@@ -582,7 +583,7 @@ ssize_t acpuclk_get_vdd_levels_str(char *buf)
 		mutex_lock(&drv_state.lock);
 		for (i = 0; acpu_freq_tbl[i].acpu_clk_khz; i++)
 		{
-				len += sprintf(buf + len, "%8u: %4d\n", acpu_freq_tbl[i].acpu_clk_khz, acpu_freq_tbl[i].vdd_mv);
+            len += sprintf(buf + len, "%8u: %4d\n", acpu_freq_tbl[i].acpu_clk_khz, acpu_freq_tbl[i].vdd_mv);
 		}
 		mutex_unlock(&drv_state.lock);
 	}
@@ -597,14 +598,14 @@ void acpuclk_set_vdd(unsigned int khz, int vdd)
 	mutex_lock(&drv_state.lock);
 	for (i = 0; acpu_freq_tbl[i].acpu_clk_khz; i++)
 	{
-			if (khz == 0)
-				new_vdd = min(max((acpu_freq_tbl[i].vdd_mv + vdd), MIN_VDD_SC), MAX_VDD_SC);
-			else if (acpu_freq_tbl[i].acpu_clk_khz == khz)
-					new_vdd = min(max((unsigned int)vdd, MIN_VDD_SC), MAX_VDD_SC);
-			else continue;
+		if (khz == 0)
+			new_vdd = min(max((acpu_freq_tbl[i].vdd_mv + vdd), MIN_VDD_SC), MAX_VDD_SC);
+		else if (acpu_freq_tbl[i].acpu_clk_khz == khz)
+			new_vdd = min(max((unsigned int)vdd, MIN_VDD_SC), MAX_VDD_SC);
+		else continue;
 
-			acpu_freq_tbl[i].vdd_mv = new_vdd;
-			acpu_freq_tbl[i].vdd_raw = VDD_RAW(new_vdd);
+		acpu_freq_tbl[i].vdd_mv = new_vdd;
+		acpu_freq_tbl[i].vdd_raw = VDD_RAW(new_vdd);
 	}
 	mutex_unlock(&drv_state.lock);
 }
