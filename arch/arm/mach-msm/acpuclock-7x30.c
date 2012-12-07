@@ -185,24 +185,7 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 };
 #endif
 
-#define POWER_COLLAPSE_KHZ MAX_AXI_KHZ
-unsigned long acpuclk_power_collapse(void)
-{
-	int ret = acpuclk_get_rate(smp_processor_id());
-	acpuclk_set_rate(smp_processor_id(), POWER_COLLAPSE_KHZ, SETRATE_PC);
-	return ret;
-}
-
-#define WAIT_FOR_IRQ_KHZ MAX_AXI_KHZ
-unsigned long acpuclk_wait_for_irq(void)
-{
-	int ret = acpuclk_get_rate(smp_processor_id());
-	acpuclk_set_rate(smp_processor_id(), WAIT_FOR_IRQ_KHZ, SETRATE_SWFI);
-	return ret;
-}
-
-/* Function for Ancora devices */
-#define MAX_CLK 1401600
+#define MAX_CLK 1804800
 unsigned long acpuclk_usr_set_max(void)
 {
 	int ret = acpuclk_get_rate(smp_processor_id());
@@ -395,6 +378,12 @@ static unsigned long acpuclk_7x30_get_rate(int cpu)
 	else
 		return 0;
 }
+
+unsigned long clk_get_max_axi_khz(void)
+{
+return MAX_AXI_KHZ;
+}
+EXPORT_SYMBOL(clk_get_max_axi_khz);
 
 /*----------------------------------------------------------------------------
  * Clock driver initialization
