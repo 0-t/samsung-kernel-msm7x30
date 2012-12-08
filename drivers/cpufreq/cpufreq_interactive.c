@@ -42,8 +42,6 @@ struct cpufreq_interactive_cpuinfo {
 	int timer_idlecancel;
 	u64 time_in_idle;
 	u64 time_in_idle_timestamp;
-	u64 target_set_time;
-	u64 target_set_time_in_idle;
 	struct cpufreq_policy *policy;
 	struct cpufreq_frequency_table *freq_table;
 	unsigned int target_freq;
@@ -234,7 +232,6 @@ static void cpufreq_interactive_timer(unsigned long data)
 	unsigned int delta_idle;
 	unsigned int delta_time;
 	int cpu_load;
-	int load_since_change;
 
 	struct cpufreq_interactive_cpuinfo *pcpu =
 		&per_cpu(cpuinfo, data);
@@ -262,23 +259,6 @@ static void cpufreq_interactive_timer(unsigned long data)
 		cpu_load = 0;
 	else
 		cpu_load = 100 * (delta_time - delta_idle) / delta_time;
-
-	delta_idle = (unsigned int)(now_idle - pcpu->target_set_time_in_idle);
-	delta_time = (unsigned int)(now - pcpu->target_set_time);
-
-	if ((delta_time == 0) || (delta_idle > delta_time))
-		load_since_change = 0;
-	else
-		load_since_change =
-			100 * (delta_time - delta_idle) / delta_time;
-
-	/*
-	 * Choose greater of short-term load (since last idle timer
-	 * started or timer function re-armed itself) or long-term load
-	 * (since last frequency change).
-	 */
-	if (load_since_change > cpu_load)
-		cpu_load = load_since_change;
 
 	if ((cpu_load >= go_hispeed_load) &&
 	    pcpu->target_freq < hispeed_freq)
@@ -333,8 +313,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 
 	trace_cpufreq_interactive_target(data, cpu_load, pcpu->target_freq,
 					 pcpu->policy->cur, new_freq);
-	pcpu->target_set_time_in_idle = now_idle;
-	pcpu->target_set_time = now;
+
 	pcpu->target_freq = new_freq;
     spin_lock_irqsave(&speedchange_cpumask_lock, flags);
     cpumask_set_cpu(data, &speedchange_cpumask);
