@@ -190,6 +190,22 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 };
 #endif
 
+/* #define POWER_COLLAPSE_KHZ MAX_AXI_KHZ
+unsigned long acpuclk_power_collapse(void)
+{
+  int ret = acpuclk_get_rate(smp_processor_id());
+  acpuclk_set_rate(smp_processor_id(), POWER_COLLAPSE_KHZ, SETRATE_PC);  	
+  return ret;
+} 	  	
+#define WAIT_FOR_IRQ_KHZ MAX_AXI_KHZ
+unsigned long acpuclk_wait_for_irq(void)
+{
+  int ret = acpuclk_get_rate(smp_processor_id());
+  acpuclk_set_rate(smp_processor_id(), WAIT_FOR_IRQ_KHZ, SETRATE_SWFI);
+  return ret;
+}	  	
+
+* Function for Ancora devices (--TODO:fix-up--)*/
 #define MAX_CLK 1881600
 unsigned long acpuclk_usr_set_max(void)
 {
