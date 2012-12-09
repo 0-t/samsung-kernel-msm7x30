@@ -512,10 +512,16 @@ static inline void setup_cpufreq_table(void) { }
 void __init pll2_fixup(void)
 {
 	struct clkctl_acpu_speed *speed = acpu_freq_tbl;
+//    u8 pll2_l = readl_relaxed(PLL2_L_VAL_ADDR) & 0xFF;
 
 	for ( ; speed->acpu_clk_khz; speed++) {
 		if (speed->src != PLL_2)
 			backup_s = speed;
+//        if (speed->pll_rate && speed->pll_rate->l == pll2_l) {
+//            speed++;
+//            speed->acpu_clk_khz = 0;
+//            return;
+//         }
 	}
 }
 
