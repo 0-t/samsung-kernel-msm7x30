@@ -575,21 +575,6 @@ ssize_t acpuclk_get_vdd_levels_str(char *buf)
 	return len;
 }
 
-ssize_t acpuclk_get_vdd_levels_str(char *buf)
-{
-	int i, len = 0;
-	if (buf)
-	{
-		mutex_lock(&drv_state.lock);
-		for (i = 0; acpu_freq_tbl[i].acpu_clk_khz; i++)
-		{
-            len += sprintf(buf + len, "%8u: %4d\n", acpu_freq_tbl[i].acpu_clk_khz, acpu_freq_tbl[i].vdd_mv);
-		}
-		mutex_unlock(&drv_state.lock);
-	}
-	return len;
-}
-
 void acpuclk_set_vdd(unsigned int khz, int vdd)
 {
 	int i;
