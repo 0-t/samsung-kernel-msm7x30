@@ -118,9 +118,6 @@
 #include <asm/atomic.h>
 #include <linux/err.h>
 #endif
-#ifdef CONFIG_KEYPAD_CYPRESS_TOUCH
-#include <linux/input/cypress-touchkey.h>
-#endif
 
 #define GPIO_BT_WAKE		147
 #define GPIO_BT_HOST_WAKE	145
@@ -214,13 +211,6 @@ EXPORT_SYMBOL(switch_dev);
 #ifdef CONFIG_OPTICAL_GP2A
 #define PMIC_GPIO_PROX_EN	15 /* PMIC GPIO 16 */
 #define MSM_GPIO_PS_VOUT	118// [HSS]125 for Test
-#endif
-
-#ifdef CONFIG_KEYPAD_CYPRESS_TOUCH
-#define _3_TOUCH_INT     84
-#define _3_TOUCH_SCL_28V 124
-#define _3_TOUCH_SDA_28V 125
-#define _3_TOUCH_EN      126
 #endif
 
 #define ADV7520_I2C_ADDR	0x39
@@ -3775,86 +3765,6 @@ static struct platform_device mcs8000_ts_device = {
 	.id 		= -1,
 };
 #endif
-
-#endif
-
-#ifdef CONFIG_KEYPAD_CYPRESS_TOUCH
-static struct i2c_gpio_platform_data touch_keypad_i2c_platdata = {
-	.sda_pin		= _3_TOUCH_SDA_28V,
-	.scl_pin		= _3_TOUCH_SCL_28V,
-	.udelay 		= 0, /* 250KHz */
-	.sda_is_open_drain	= 0,
-	.scl_is_open_drain	= 0,
-	.scl_is_output_only	= 0,
-};
-
-static struct platform_device touch_keypad_i2c_device = {
-	.name			= "i2c-gpio",
-	.id			= 20,
-	.dev.platform_data	= &touch_keypad_i2c_platdata,
-};
-static void touch_keypad_gpio_init(void)
-{
-	int ret = 0;
-
-	gpio_tlmm_config(GPIO_CFG(_3_TOUCH_EN, 0, GPIO_CFG_OUTPUT,
-				  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-	gpio_set_value(_3_TOUCH_EN, 1);
-
-	printk("touch_keypad_gpio_init.\n");	
-}
-
-static void touch_keypad_onoff(int onoff)
-{
-	int i = 0;
-//	gpio_direction_output(_3_TOUCH_EN, onoff);
-	gpio_tlmm_config(GPIO_CFG(_3_TOUCH_EN, 0, GPIO_CFG_OUTPUT,
-				  GPIO_CFG_NO_PULL, GPIO_CFG_2MA), GPIO_CFG_ENABLE);
-
-	while(i < 5)
-	{
-		gpio_set_value(_3_TOUCH_EN, onoff);
-
-		if (onoff == TOUCHKEY_OFF)
-			msleep(30);
-		else
-			msleep(25);
-
-		if(gpio_get_value(_3_TOUCH_EN) == 1)
-			break;
-
-		i++;
-	}		
-
-	printk("touch_keypad_onoff %d , %d.\n",onoff, gpio_get_value(_3_TOUCH_EN));		
-}
-
-static void touch_keypad_gpio_sleep(int onoff){
-  if(onoff == TOUCHKEY_ON)
-      gpio_tlmm_config(_3_TOUCH_EN, GPIO_CFG_ENABLE);
-  else
-      gpio_tlmm_config(_3_TOUCH_EN, GPIO_CFG_DISABLE);
-}
-
-static const int touch_keypad_code[] = {
-	KEY_MENU,
-	KEY_BACK,
-};
-
-static struct touchkey_platform_data touchkey_data = {
-	.keycode_cnt = ARRAY_SIZE(touch_keypad_code),
-	.keycode = touch_keypad_code,
-	.touchkey_onoff = touch_keypad_onoff,
-	.touchkey_sleep_onoff = touch_keypad_gpio_sleep,
-};
-
-static struct i2c_board_info touchkey_info[] __initdata = {
-	{
-		I2C_BOARD_INFO(CYPRESS_TOUCHKEY_DEV_NAME, 0x20),
-		.platform_data = &touchkey_data,			
-		.irq = MSM_GPIO_TO_INT(_3_TOUCH_INT),
-	},
-};
 
 #endif
 
@@ -7615,10 +7525,6 @@ else
 			ARRAY_SIZE(touch_i2c_devices));
 #endif
 
-#ifdef CONFIG_KEYPAD_CYPRESS_TOUCH
-	&touch_keypad_i2c_device,
-#endif
-
 #ifdef CONFIG_SENSORS_AK8975
 	{
 		i2c_register_board_info(12, mag_i2c_devices,
@@ -7710,13 +7616,6 @@ else
 	{
 		magnetic_device_init();	// ak8975 nRST gpio pin configue
 	}
-#endif
-
-#ifdef CONFIG_KEYPAD_CYPRESS_TOUCH
-	/* Touch Key */
-	touch_keypad_gpio_init();
-	i2c_register_board_info(20, touchkey_info, ARRAY_SIZE(touchkey_info));
-
 #endif
 
 	if (machine_is_msm8x55_svlte_surf() || machine_is_msm8x55_svlte_ffa()) {
