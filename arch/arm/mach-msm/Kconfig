@@ -1415,7 +1415,7 @@ config MSM_CPU_FREQ_EXTREME_UV
 	  Enabling this option change all voltage of all frequency for the extreme undervolt.
 
 	  If unsure, say N.
-	  
+
 config MSM_CPU_FREQ_OVERCLOCKING
 	bool "Enable support for CPU overclocking"
 	depends on ARCH_MSM7X30
@@ -1430,13 +1430,6 @@ config MSM_CPU_FREQ_EXTREME_OVERCLOCKING
 	help
 	  Enabling this option allow to use 1881mhz overclock frequency.
 	  Warning: prolonged use of this frequency cause instability of system!
-
-config BIGMEM_MODE
-	bool "Bigmem mode enable 375MB of free RAM"
-	depends on ARCH_MSM7X30
-	default n
-	help
-	  Enabling this option free 375MB of ram, but the 720P video recorder breaks.
 
 endif # CPU_FREQ_MSM
 
@@ -2224,5 +2217,35 @@ config FORCE_FAST_CHARGE
 	help
 	  A simple sysfs interface to force adapters that
 	  are detected as USB to charge as AC.
+
+choice
+	prompt "RAM options (NORMALMEM, BIGMEM, MAXMEM)"
+
+config ANCORA_TMO_NORMALMEM
+       bool "select NORMAL memory config"
+       help 
+		Enable 352MB memory config. Breaks 720p only.	
+
+config ANCORA_TMO_BIGMEM
+       bool "select BIGMEM memory config"
+       help 
+		Enable 368MB memory config. Breaks 720p only.
+
+config ANCORA_TMO_MAXMEM
+       bool "select MAXMEM memory config"
+       help 
+		Enable 398MB memory config. Breaks NATIVE CAMERA 720p and 480p recording (use lgCamera)
+
+config ANCORA_TMO_ULTRAMEM
+       bool "select ULTRAMEM memory config"
+       help 
+		Enable 405MB memory config. Breaks NATIVE CAMERA 720p and 480p, Camera crappy
+
+config ANCORA_TMO_EXTREMEMEM
+       bool "select EXTREMEMEM memory config"
+       help 
+		Enable 423MB memory config. Breaks NATIVE CAMERA
+
+endchoice
 
 endif
