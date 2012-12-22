@@ -25,7 +25,7 @@
 #include <media/msm_camera.h>
 #include <mach/gpio.h>
 
-#if defined(CONFIG_MACH_ANCORA)
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
 #include "s5k4ecgx.h"
 #elif defined(CONFIG_MACH_APACHE)
 #include "s5k4ecgx_I847.h"

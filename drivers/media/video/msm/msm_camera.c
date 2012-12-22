@@ -3040,6 +3040,8 @@ static long msm_ioctl_control(struct file *filep, unsigned int cmd,
 #if defined (CONFIG_OEM_CAMERA)
 	case MSM_CAM_IOCTL_EXT_CONFIG:
 		copy_from_user((void *)&cfg_data, (const void *)argp, sizeof(cfg_data));
+//        rc = pmsm->sync->sctrl.s_ext_config(argp);
+//        break;
 #if defined (CONFIG_MACH_ARIESVE)
 		if(cfg_data.device_id == 0)
                rc = ce147_sensor_ext_config(argp);
