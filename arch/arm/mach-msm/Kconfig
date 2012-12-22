@@ -1412,7 +1412,7 @@ config MSM_CPU_FREQ_EXTREME_UV
 	depends on ARCH_MSM7X30
 	default n	
 	help
-	  Enabling this option change all voltage of all frequency for the extreme undervolt.
+	  Enabling this option change all voltage of all frequency for the extreme undervolt mode.
 
 	  If unsure, say N.
 	  
