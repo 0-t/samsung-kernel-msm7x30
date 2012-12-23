@@ -147,7 +147,12 @@ EXPORT_SYMBOL(sec_class);
 struct device *switch_dev;
 EXPORT_SYMBOL(switch_dev);
 
-#define MSM_PMEM_SF_SIZE	0x1800000 // 0x1700000
+#ifdef CONFIG_BIGMEM_MODE
+#define MSM_PMEM_SF_SIZE		0X1600000
+#else
+#define MSM_PMEM_SF_SIZE		0x1800000 //old value 0x1A00000
+#endif
+
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_PRIM_BUF_SIZE	(800 * 480 * 4 * 3) /* 4bpp * 3 Pages */
 #else
@@ -169,13 +174,20 @@ EXPORT_SYMBOL(switch_dev);
 
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE + MSM_FB_EXT_BUF_SIZE, 4096)
 
-#define MSM_PMEM_ADSP_SIZE		0x2A05000 // 0x1E00000
+#ifdef CONFIG_BIGMEM_MODE
+#define MSM_PMEM_ADSP_SIZE		0X1B00000 //720P video recorder break
+#else
+#define MSM_PMEM_ADSP_SIZE		0x2A05000 //old value 0x2D00000
+#endif
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
 #define PMEM_KERNEL_EBI0_SIZE		0x600000
 #define MSM_PMEM_AUDIO_SIZE		0x80000 // 0x200000
 
 #define PMIC_GPIO_INT		27
-#define PMIC_VREG_WLAN_LEVEL	2900
+#define PMIC_VREG_WLAN_LEVEL	2100
+#define PMIC_GPIO_MICBIAS_EN	14 // PM8058_GPIO(15) 
+#define PMIC_GPIO_EARPATH_SEL	13 // PM8058_GPIO(14) 
+
 #define PMIC_GPIO_SD_DET	36
 #define PMIC_GPIO_SDC4_EN_N	17  /* PMIC GPIO Number 18 */
 #define PMIC_GPIO_HDMI_5V_EN_V3 32  /* PMIC GPIO for V3 H/W */
@@ -6514,6 +6526,9 @@ static int msm_sdc1_lvlshft_enable(void)
 	int rc;
 
 	/* Enable LDO5, an input to the FET that powers slot 1 */
+	rc = vreg_set_level(vreg_mmc, 2650);
+	if (rc)
+		printk(KERN_ERR "%s: vreg_set_level() = %d \n",	__func__, rc);
 
 	ldo5 = regulator_get(NULL, "ldo5");
 
@@ -6856,11 +6871,8 @@ out2:
 out3:
 #endif
 #ifdef CONFIG_MMC_MSM_SDC4_SUPPORT
-	if (mmc_regulator_init(4, "gp10", 2850000))
-		return;
-	msm7x30_sdc4_data.swfi_latency = msm7x30_power_collapse_latency(
-		MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT);
-
+	sdcc_vreg_data[3].vreg_data = vreg_mmc;
+	sdcc_vreg_data[3].level = 2650;
 	msm_add_sdcc(4, &msm7x30_sdc4_data);
 #endif
 
