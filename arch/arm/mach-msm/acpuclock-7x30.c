@@ -105,9 +105,11 @@ static struct pll pll2_tbl[] = {
 #endif
 };
 
+/* Use negative numbers for sources that can't be enabled/disabled */
+#define SRC_LPXO (-2)
+#define SRC_AXI  (-1)
+
 enum acpuclk_source {
-	LPXO    = -2,
-	AXI     = -1,
 	PLL_0	=  0,
 	PLL_1,
 	PLL_2,
