@@ -6526,10 +6526,6 @@ static int msm_sdc1_lvlshft_enable(void)
 	int rc;
 
 	/* Enable LDO5, an input to the FET that powers slot 1 */
-	rc = vreg_set_level(vreg_mmc, 2650);
-	if (rc)
-		printk(KERN_ERR "%s: vreg_set_level() = %d \n",	__func__, rc);
-
 	ldo5 = regulator_get(NULL, "ldo5");
 
 	if (IS_ERR(ldo5)) {
@@ -6871,8 +6867,10 @@ out2:
 out3:
 #endif
 #ifdef CONFIG_MMC_MSM_SDC4_SUPPORT
-	sdcc_vreg_data[3].vreg_data = vreg_mmc;
-	sdcc_vreg_data[3].level = 2650;
+	if (mmc_regulator_init(4, "gp10", 2850000))
+	    return;
+    msm7x30_sdc4_data.swfi_latency = msm7x30_power_collapse_latency(
+               MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT);
 	msm_add_sdcc(4, &msm7x30_sdc4_data);
 #endif
 
