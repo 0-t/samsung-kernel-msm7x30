@@ -103,11 +103,9 @@ static struct pll pll2_tbl[] = {
 /*	{98, 1, 3, 0 },     /  1881 MHz */
 };
 
-/* Use negative numbers for sources that can't be enabled/disabled */
-#define SRC_LPXO (-2)
-#define SRC_AXI  (-1)
-
 enum acpuclk_source {
+	LPXO    = -2,
+	AXI     = -1,
 	PLL_0	=  0,
 	PLL_1,
 	PLL_2,
@@ -124,7 +122,6 @@ static struct clk *acpuclk_sources[MAX_SOURCE];
  * know all the h/w requirements.
  */
 #ifdef CONFIG_MSM_CPU_FREQ_EXTREME_UV
-
 static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 0, 24576,  LPXO,	   0, 0,  30720000,  750, VDD_RAW(750) },
 	{ 0, 61440,  PLL_3,    5, 11, 61440000,  750, VDD_RAW(750) },
@@ -185,8 +182,7 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 };
 #endif
 
-* Function for Ancora devices (--TODO:fix-up--)*/
-#define MAX_CLK 1881600
+#define MAX_CLK 1804800
 unsigned long acpuclk_usr_set_max(void)
 {
 	int ret = acpuclk_get_rate(smp_processor_id());
