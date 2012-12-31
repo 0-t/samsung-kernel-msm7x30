@@ -209,7 +209,7 @@ static const int twl6040_vdd_reg[TWL6040_VDDREGNUM] = {
 	TWL6040_REG_DLB,
 };
 
-unsigned int volume_boost = 3;
+unsigned int volume_boost = 2;
 
 /*
  * read twl6040 register cache
