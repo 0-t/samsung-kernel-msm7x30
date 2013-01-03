@@ -32,7 +32,7 @@ static int pc_clk_enable(struct clk *clk)
 	int id = to_pcom_clk(clk)->id;
 
 	/* Ignore clocks that are always on */
-#ifdef CONFIG_MACH_ARIESVE
+#ifdef CONFIG_MACH_ARIESVE || #ifdef CONFIG_MACH_ANCORA_TMO
 	if (id == P_EBI1_CLK || id == P_PBUS_CLK)
 #else
 	if (id == P_EBI1_CLK || id == P_EBI1_FIXED_CLK)
@@ -51,7 +51,7 @@ static void pc_clk_disable(struct clk *clk)
 	int id = to_pcom_clk(clk)->id;
 
 	/* Ignore clocks that are always on */
-#ifdef CONFIG_MACH_ARIESVE
+#ifdef CONFIG_MACH_ARIESVE || #ifdef CONFIG_MACH_ANCORA_TMO
 	if (id == P_EBI1_CLK || id == P_PBUS_CLK)
 #else
 	if (id == P_EBI1_CLK || id == P_EBI1_FIXED_CLK)
@@ -211,7 +211,7 @@ struct clk_ops clk_ops_pcom_ext_config = {
 	.is_local = pc_clk_is_local,
 };
 
-#ifdef CONFIG_MACH_ARIESVE
+#ifdef CONFIG_MACH_ARIESVE || #ifdef CONFIG_MACH_ANCORA_TMO
 static int pc_clk_set_rate2(struct clk *clk, unsigned rate)
 {
 	   int res = _pc_clk_set_min_rate(clk, rate / 2);
