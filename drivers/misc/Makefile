@@ -50,7 +50,6 @@ obj-y				+= lis3lv02d/
 obj-y				+= carma/
 obj-$(CONFIG_WL127X_RFKILL)	+= wl127x-rfkill.o
 obj-$(CONFIG_APANIC)		+= apanic.o
-<<<<<<< HEAD
 obj-$(CONFIG_TSIF) += msm_tsif.o
 msm_tsif-objs := tsif.o
 obj-$(CONFIG_TSIF_CHRDEV) += tsif_chrdev.o
