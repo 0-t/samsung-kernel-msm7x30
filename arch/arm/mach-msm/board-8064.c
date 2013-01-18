@@ -814,5 +814,3 @@ MACHINE_START(APQ8064_RUMI3, "QCT APQ8064 RUMI3")
 	.timer = &msm_timer,
 	.init_machine = apq8064_rumi3_init,
 MACHINE_END
-
-

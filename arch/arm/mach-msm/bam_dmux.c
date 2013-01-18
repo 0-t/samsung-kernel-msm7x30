@@ -2255,4 +2255,3 @@ static int __init bam_dmux_init(void)
 late_initcall(bam_dmux_init); /* needs to init after SMD */
 MODULE_DESCRIPTION("MSM BAM DMUX");
 MODULE_LICENSE("GPL v2");
-

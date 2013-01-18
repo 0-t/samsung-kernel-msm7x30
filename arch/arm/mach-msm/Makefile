@@ -225,9 +225,12 @@ obj-$(CONFIG_MACH_MSM7627A_QRD1) += board-qrd7627a.o board-msm7627a-storage.o bo
 ifdef CONFIG_MACH_ANCORA
 obj-$(CONFIG_ARCH_MSM7X30) += board-ancora.o devices-msm7x30.o memory_topology.o samsung_vibrator.o
 endif
+<<<<<<< HEAD
 ifdef CONFIG_MACH_ANCORA_TMO
 obj-$(CONFIG_ARCH_MSM7X30) += board-ancora_tmo.o devices-msm7x30.o memory_topology.o samsung_vibrator.o
 endif
+=======
+>>>>>>> arco/jb-3.0
 ifdef CONFIG_MACH_ARIESVE
 obj-$(CONFIG_ARCH_MSM7X30) += board-ariesve.o devices-msm7x30.o memory_topology.o
 endif

@@ -1457,4 +1457,3 @@ struct acpuclk_soc_data acpuclk_8960_soc_data __initdata = {
 struct acpuclk_soc_data acpuclk_8930_soc_data __initdata = {
 	.init = acpuclk_8960_init,
 };
-

@@ -969,4 +969,3 @@ int __init gic_of_init(struct device_node *node, struct device_node *parent)
 	return 0;
 }
 #endif
-
