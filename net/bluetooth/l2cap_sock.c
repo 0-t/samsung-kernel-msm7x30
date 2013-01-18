@@ -537,10 +537,8 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 		memset(&sec, 0, sizeof(sec));
 		sec.level = l2cap_pi(sk)->sec_level;
 
-		if (sk->sk_state == BT_CONNECTED) {
+		if (sk->sk_state == BT_CONNECTED)
 			sec.key_size = l2cap_pi(sk)->conn->hcon->enc_key_size;
-			sec.level = l2cap_pi(sk)->conn->hcon->sec_level;
-		}
 
 		len = min_t(unsigned int, len, sizeof(sec));
 		if (copy_to_user(optval, (char *) &sec, len))
@@ -1187,7 +1185,7 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 static int l2cap_sock_release(struct socket *sock)
 {
 	struct sock *sk = sock->sk;
-	struct sock *sk2 = NULL;
+	struct sock *srv_sk = NULL;
 	int err;
 
 	BT_DBG("sock %p, sk %p", sock, sk);
@@ -1195,16 +1193,15 @@ static int l2cap_sock_release(struct socket *sock)
 	if (!sk)
 		return 0;
 
-	/* If this is an ATT socket, find it's matching server/client */
-	if (l2cap_pi(sk)->scid == L2CAP_CID_LE_DATA)
-		sk2 = l2cap_find_sock_by_fixed_cid_and_dir(L2CAP_CID_LE_DATA,
-					&bt_sk(sk)->src, &bt_sk(sk)->dst,
-					l2cap_pi(sk)->incoming ? 0 : 1);
+	/* If this is an ATT Client socket, find the matching Server */
+	if (l2cap_pi(sk)->scid == L2CAP_CID_LE_DATA && !l2cap_pi(sk)->incoming)
+		srv_sk = l2cap_find_sock_by_fixed_cid_and_dir(L2CAP_CID_LE_DATA,
+					&bt_sk(sk)->src, &bt_sk(sk)->dst, 1);
 
-	/* If matching socket found, request tear down */
-	BT_DBG("sock:%p companion:%p", sk, sk2);
-	if (sk2)
-		l2cap_sock_set_timer(sk2, 1);
+	/* If server socket found, request tear down */
+	BT_DBG("client:%p server:%p", sk, srv_sk);
+	if (srv_sk)
+		l2cap_sock_set_timer(srv_sk, 1);
 
 	err = l2cap_sock_shutdown(sock, 2);
 

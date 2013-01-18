@@ -129,10 +129,16 @@ void vcd_ddl_callback(u32 event, u32 status, void *payload,
 		{
 			transc = (struct vcd_transc *)client_data;
 
-			if (!transc || !transc->in_use
-				|| !transc->cctxt) {
+			if (!transc || !transc->in_use || !transc->cctxt) {
 				VCD_MSG_ERROR("Invalid clientdata "
-							  "received from DDL ");
+					"received from DDL, transc = 0x%x\n",
+					(u32)transc);
+				if (transc) {
+					VCD_MSG_ERROR("transc->in_use = %u, "
+						"transc->cctxt = 0x%x\n",
+						transc->in_use,
+						(u32)transc->cctxt);
+				}
 			} else {
 				cctxt = transc->cctxt;
 
@@ -213,7 +219,6 @@ u32 vcd_init_device_context(struct vcd_drv_ctxt *drv_ctxt,
 						   VCD_DEVICE_STATE_INITING,
 						   ev_code);
 	}
-	dev_ctxt->turbo_mode_set = 0;
 
 	return rc;
 }
@@ -851,7 +856,7 @@ static u32 vcd_close_in_ready
 	} else {
 		VCD_MSG_ERROR("Unsupported API in client state %d",
 				  cctxt->clnt_state.state);
-
+		vcd_destroy_client_context(cctxt);
 		rc = VCD_ERR_BAD_STATE;
 	}
 

@@ -25,6 +25,8 @@ void __init msm9615_device_init(void);
 void __init msm9615_map_io(void);
 void __init msm_map_msm9615_io(void);
 void __init msm9615_init_irq(void);
+void __init msm_rotator_update_bus_vectors(unsigned int xres,
+	unsigned int yres);
 
 extern struct platform_device asoc_msm_pcm;
 extern struct platform_device asoc_msm_dai0;
@@ -60,10 +62,8 @@ extern struct platform_device msm8960_device_qup_spi_gsbi1;
 extern struct platform_device msm8960_gemini_device;
 extern struct platform_device msm8960_device_csiphy0;
 extern struct platform_device msm8960_device_csiphy1;
-extern struct platform_device msm8960_device_csiphy2;
 extern struct platform_device msm8960_device_csid0;
 extern struct platform_device msm8960_device_csid1;
-extern struct platform_device msm8960_device_csid2;
 extern struct platform_device msm8960_device_ispif;
 extern struct platform_device msm8960_device_vfe;
 extern struct platform_device msm8960_device_vpe;

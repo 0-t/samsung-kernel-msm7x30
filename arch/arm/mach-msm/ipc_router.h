@@ -95,7 +95,6 @@ struct rr_header {
 /* internals */
 
 #define IPC_ROUTER_MAX_REMOTE_SERVERS		100
-#define MAX_WAKELOCK_NAME_SZ 32
 
 struct rr_packet {
 	struct list_head list;
@@ -117,7 +116,6 @@ struct msm_ipc_port {
 
 	struct list_head port_rx_q;
 	struct mutex port_rx_q_lock;
-	char rx_wakelock_name[MAX_WAKELOCK_NAME_SZ];
 	struct wake_lock port_rx_wake_lock;
 	wait_queue_head_t port_rx_wait_q;
 
@@ -183,7 +181,7 @@ int msm_ipc_router_read(struct msm_ipc_port *port_ptr,
 int msm_ipc_router_get_curr_pkt_size(struct msm_ipc_port *port_ptr);
 int msm_ipc_router_bind_control_port(struct msm_ipc_port *port_ptr);
 int msm_ipc_router_lookup_server_name(struct msm_ipc_port_name *srv_name,
-				      struct msm_ipc_port_addr *port_addr,
+				      struct msm_ipc_server_info *srv_info,
 				      int num_entries_in_array,
 				      uint32_t lookup_mask);
 int msm_ipc_router_close_port(struct msm_ipc_port *port_ptr);

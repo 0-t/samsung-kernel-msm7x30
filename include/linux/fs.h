@@ -1442,9 +1442,6 @@ struct super_block {
 	/*
 	 * Saved pool identifier for cleancache (-1 means none)
 	 */
-
-	// char *s_options;
-
 	int cleancache_poolid;
 };
 

@@ -15,9 +15,6 @@
 #include <mach/qdsp6v2/apr.h>
 #include <mach/msm_subsystem_map.h>
 #include <sound/apr_audio.h>
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-#include <linux/ion.h>
-#endif
 
 #define IN                      0x000
 #define OUT                     0x001
@@ -76,8 +73,7 @@
 #define SESSION_MAX	0x08
 
 #define SOFT_PAUSE_PERIOD       30   /* ramp up/down for 30ms    */
-#define SOFT_PAUSE_STEP_LINEAR  0    /* Step value 0ms or 0us */
-#define SOFT_PAUSE_STEP         2000 /* Step value 2000ms or 2000us */
+#define SOFT_PAUSE_STEP         2000 /* Step value 2ms or 2000us */
 enum {
 	SOFT_PAUSE_CURVE_LINEAR = 0,
 	SOFT_PAUSE_CURVE_EXP,
@@ -85,8 +81,7 @@ enum {
 };
 
 #define SOFT_VOLUME_PERIOD       30   /* ramp up/down for 30ms    */
-#define SOFT_VOLUME_STEP_LINEAR  0    /* Step value 0ms or 0us */
-#define SOFT_VOLUME_STEP         2000 /* Step value 2000ms or 2000us */
+#define SOFT_VOLUME_STEP         2000 /* Step value 2ms or 2000us */
 enum {
 	SOFT_VOLUME_CURVE_LINEAR = 0,
 	SOFT_VOLUME_CURVE_EXP,
@@ -99,15 +94,10 @@ typedef void (*app_cb)(uint32_t opcode, uint32_t token,
 struct audio_buffer {
 	dma_addr_t phys;
 	void       *data;
+	struct msm_mapped_buffer *mem_buffer;
 	uint32_t   used;
 	uint32_t   size;/* size of buffer */
 	uint32_t   actual_size; /* actual number of bytes read by DSP */
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-	struct ion_handle *handle;
-	struct ion_client *client;
-#else
-	struct msm_mapped_buffer *mem_buffer;
-#endif
 };
 
 struct audio_aio_write_param {
@@ -145,7 +135,6 @@ struct audio_client {
 
 	atomic_t		cmd_state;
 	atomic_t		time_flag;
-	atomic_t		nowait_cmd_cnt;
 	wait_queue_head_t	cmd_wait;
 	wait_queue_head_t	time_wait;
 

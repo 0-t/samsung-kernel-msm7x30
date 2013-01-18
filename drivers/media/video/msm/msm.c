@@ -23,7 +23,11 @@
 
 #define MSM_MAX_CAMERA_SENSORS 5
 
-#define D(fmt, args...) printk("msm: " fmt, ##args)
+#ifdef CONFIG_MSM_CAMERA_DEBUG
+#define D(fmt, args...) pr_debug("msm: " fmt, ##args)
+#else
+#define D(fmt, args...) do {} while (0)
+#endif
 
 static unsigned msm_camera_v4l2_nr = -1;
 static struct msm_cam_server_dev g_server_dev;
@@ -75,15 +79,6 @@ static void msm_cam_v4l2_subdev_notify(struct v4l2_subdev *sd,
 
 	if (pcam == NULL)
 		return;
-
-	if (notification == NOTIFY_VFE_CAMIF_ERROR) {
-		struct v4l2_event v4l2_ev;
-		v4l2_ev.type = V4L2_EVENT_PRIVATE_START
-				+ MSM_CAM_APP_NOTIFY_ERROR_EVENT;
-		ktime_get_ts(&v4l2_ev.timestamp);
-		v4l2_event_queue(g_server_dev.pcam_active->pvdev, &v4l2_ev);
-		return;
-	}
 
 	/* forward to media controller for any changes*/
 	if (pcam->mctl.mctl_notify) {
@@ -198,8 +193,7 @@ static int msm_server_control(struct msm_cam_server_dev *server_dev,
 
 	ctrlcmd = (struct msm_ctrl_cmd *)(rcmd->command);
 	value = out->value;
-	if (ctrlcmd->length > 0 && value != NULL &&
-	    ctrlcmd->length <= out->length)
+	if (ctrlcmd->length > 0)
 		memcpy(value, ctrlcmd->value, ctrlcmd->length);
 
 	memcpy(out, ctrlcmd, sizeof(struct msm_ctrl_cmd));
@@ -244,7 +238,7 @@ static int msm_send_close_server(int vnode_id)
 {
 	int rc = 0;
 	struct msm_ctrl_cmd ctrlcmd;
-	D("%s\n", __func__);
+	pr_err("%s\n", __func__);
 	ctrlcmd.type	   = MSM_V4L2_CLOSE;
 	ctrlcmd.timeout_ms = 10000;
 	ctrlcmd.length	 = strnlen(g_server_dev.config_info.config_dev_name[0],
@@ -464,10 +458,7 @@ static int msm_server_proc_ctrl_cmd(struct msm_cam_v4l2_device *pcam,
 	ctrlcmd.type = MSM_V4L2_SET_CTRL_CMD;
 	ctrlcmd.length = cmd_len + value_len;
 	ctrlcmd.value = (void *)ctrl_data;
-	if (tmp_cmd->timeout_ms > 0)
-		ctrlcmd.timeout_ms = tmp_cmd->timeout_ms;
-	else
-		ctrlcmd.timeout_ms = 1000;
+	ctrlcmd.timeout_ms = 1000;
 	ctrlcmd.vnode_id = pcam->vnode_id;
 	ctrlcmd.config_ident = g_server_dev.config_info.config_dev_id[0];
 	/* send command to config thread in usersspace, and get return value */
@@ -2114,7 +2105,7 @@ static long msm_v4l2_evt_notify(struct msm_cam_media_controller *mctl,
 		ERR_COPY_FROM_USER();
 		return -EFAULT;
 	}
-
+	pr_err("%s: Sending event to HAL with type %x\n", __func__, v4l2_ev.type);
 	pcam = mctl->sync.pcam_sync;
 	ktime_get_ts(&v4l2_ev.timestamp);
 	v4l2_event_queue(pcam->pvdev, &v4l2_ev);
@@ -2252,10 +2243,6 @@ static long msm_ioctl_config(struct file *fp, unsigned int cmd,
 		}
 
 		break;
-	case MSM_CAM_IOCTL_CTRL_CMD_DONE:
-		D("%s: MSM_CAM_IOCTL_CTRL_CMD_DONE\n", __func__);
-		rc = msm_ctrl_cmd_done((void __user *)arg);
-		break;
 
 	case MSM_CAM_IOCTL_V4L2_EVT_NOTIFY:
 		rc = msm_v4l2_evt_notify(config_cam->p_mctl, cmd, arg);
@@ -2265,6 +2252,15 @@ static long msm_ioctl_config(struct file *fp, unsigned int cmd,
 		if (copy_from_user(&config_cam->mem_map, (void __user *)arg,
 				sizeof(struct msm_mem_map_info)))
 			rc = -EINVAL;
+		break;
+
+	case MCTL_CAM_IOCTL_SET_FOCUS:
+		if (copy_from_user(&config_cam->p_mctl->sync.focus_state,
+			(void __user *)arg, sizeof(uint32_t))) {
+			ERR_COPY_FROM_USER();
+			rc = -EINVAL;
+			break;
+		}
 		break;
 
 	default:{

@@ -45,7 +45,7 @@
 #include <mach/msm_dcvs.h>
 
 #ifdef CONFIG_MSM_MPM
-#include <mach/mpm.h>
+#include "mpm.h"
 #endif
 #ifdef CONFIG_MSM_DSPS
 #include <mach/msm_dsps.h>
@@ -635,7 +635,6 @@ struct msm_vidc_platform_data vidc_platform_data = {
 #endif
 	.disable_dmx = 0,
 	.disable_fullhd = 0,
-	.cont_mode_dpb_count = 18,
 };
 
 struct platform_device msm_device_vidc = {
@@ -654,6 +653,7 @@ struct platform_device msm_device_vidc = {
 #define MSM_SDC2_BASE         0x12140000
 #define MSM_SDC2_DML_BASE     (MSM_SDC2_BASE + 0x800)
 #define MSM_SDC2_BAM_BASE     (MSM_SDC2_BASE + 0x2000)
+#define MSM_SDC2_BASE         0x12140000
 #define MSM_SDC3_BASE         0x12180000
 #define MSM_SDC3_DML_BASE     (MSM_SDC3_BASE + 0x800)
 #define MSM_SDC3_BAM_BASE     (MSM_SDC3_BASE + 0x2000)
@@ -944,8 +944,6 @@ static struct pil_q6v4_pdata msm_8960_q6_mss_fw_data = {
 	.aclk_reg = SFAB_MSS_Q6_FW_ACLK_CTL,
 	.jtag_clk_reg = MSS_Q6FW_JTAG_CLK_CTL,
 	.xo_id = MSM_XO_CXO,
-	.xo1_id = MSM_XO_TCXO_A0,
-	.xo2_id = MSM_XO_TCXO_A1,
 	.name = "modem_fw",
 	.depends = "q6",
 	.pas_id = PAS_MODEM_FW,
@@ -1259,21 +1257,6 @@ static struct resource msm_csiphy1_resources[] = {
 	},
 };
 
-static struct resource msm_csiphy2_resources[] = {
-	{
-		.name	= "csiphy",
-		.start	= 0x04801400,
-		.end	= 0x04801400 + SZ_1K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.name	= "csiphy",
-		.start	= MSM8960_CSIPHY_2_2LN_IRQ,
-		.end	= MSM8960_CSIPHY_2_2LN_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
 struct platform_device msm8960_device_csiphy0 = {
 	.name           = "msm_csiphy",
 	.id             = 0,
@@ -1286,13 +1269,6 @@ struct platform_device msm8960_device_csiphy1 = {
 	.id             = 1,
 	.resource       = msm_csiphy1_resources,
 	.num_resources  = ARRAY_SIZE(msm_csiphy1_resources),
-};
-
-struct platform_device msm8960_device_csiphy2 = {
-	.name           = "msm_csiphy",
-	.id             = 2,
-	.resource       = msm_csiphy2_resources,
-	.num_resources  = ARRAY_SIZE(msm_csiphy2_resources),
 };
 
 static struct resource msm_csid0_resources[] = {
@@ -1325,21 +1301,6 @@ static struct resource msm_csid1_resources[] = {
 	},
 };
 
-static struct resource msm_csid2_resources[] = {
-	{
-		.name	= "csid",
-		.start	= 0x04801800,
-		.end	= 0x04801800 + SZ_1K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	{
-		.name	= "csid",
-		.start	= CSI_2_IRQ,
-		.end	= CSI_2_IRQ,
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
 struct platform_device msm8960_device_csid0 = {
 	.name           = "msm_csid",
 	.id             = 0,
@@ -1352,13 +1313,6 @@ struct platform_device msm8960_device_csid1 = {
 	.id             = 1,
 	.resource       = msm_csid1_resources,
 	.num_resources  = ARRAY_SIZE(msm_csid1_resources),
-};
-
-struct platform_device msm8960_device_csid2 = {
-	.name           = "msm_csid",
-	.id             = 2,
-	.resource       = msm_csid2_resources,
-	.num_resources  = ARRAY_SIZE(msm_csid2_resources),
 };
 
 struct resource msm_ispif_resources[] = {
@@ -1774,7 +1728,88 @@ struct platform_device *msm_footswitch_devices[] = {
 };
 unsigned msm_num_footswitch_devices = ARRAY_SIZE(msm_footswitch_devices);
 
+
 #ifdef CONFIG_MSM_ROTATOR
+static struct msm_bus_vectors rotator_init_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_ROTATOR,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab = 0,
+		.ib = 0,
+	},
+};
+
+static struct msm_bus_vectors rotator_ui_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_ROTATOR,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = (1024 * 600 * 4 * 2 * 60),
+		.ib  = (1024 * 600 * 4 * 2 * 60 * 1.5),
+	},
+};
+
+static struct msm_bus_vectors rotator_vga_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_ROTATOR,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = (640 * 480 * 2 * 2 * 30),
+		.ib  = (640 * 480 * 2 * 2 * 30 * 1.5),
+	},
+};
+static struct msm_bus_vectors rotator_720p_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_ROTATOR,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = (1280 * 736 * 2 * 2 * 30),
+		.ib  = (1280 * 736 * 2 * 2 * 30 * 1.5),
+	},
+};
+
+static struct msm_bus_vectors rotator_1080p_vectors[] = {
+	{
+		.src = MSM_BUS_MASTER_ROTATOR,
+		.dst = MSM_BUS_SLAVE_EBI_CH0,
+		.ab  = (1920 * 1088 * 2 * 2 * 30),
+		.ib  = (1920 * 1088 * 2 * 2 * 30 * 1.5),
+	},
+};
+
+static struct msm_bus_paths rotator_bus_scale_usecases[] = {
+	{
+		ARRAY_SIZE(rotator_init_vectors),
+		rotator_init_vectors,
+	},
+	{
+		ARRAY_SIZE(rotator_ui_vectors),
+		rotator_ui_vectors,
+	},
+	{
+		ARRAY_SIZE(rotator_vga_vectors),
+		rotator_vga_vectors,
+	},
+	{
+		ARRAY_SIZE(rotator_720p_vectors),
+		rotator_720p_vectors,
+	},
+	{
+		ARRAY_SIZE(rotator_1080p_vectors),
+		rotator_1080p_vectors,
+	},
+};
+
+struct msm_bus_scale_pdata rotator_bus_scale_pdata = {
+	rotator_bus_scale_usecases,
+	ARRAY_SIZE(rotator_bus_scale_usecases),
+	.name = "rotator",
+};
+
+void __init msm_rotator_update_bus_vectors(unsigned int xres,
+	unsigned int yres)
+{
+	rotator_ui_vectors[0].ab = xres * yres * 4 * 2 * 60;
+	rotator_ui_vectors[0].ib = xres * yres * 4 * 2 * 60 * 3 / 2;
+}
+
 #define ROTATOR_HW_BASE         0x04E00000
 static struct resource resources_msm_rotator[] = {
 	{
@@ -2494,7 +2529,7 @@ static struct kgsl_device_platform_data kgsl_3d0_pdata = {
 	.init_level = 0,
 	.num_levels = 5,
 	.set_grp_async = NULL,
-	.idle_timeout = HZ/12,
+	.idle_timeout = HZ/20,
 	.nap_allowed = true,
 	.clk_map = KGSL_CLK_CORE | KGSL_CLK_IFACE | KGSL_CLK_MEM_IFACE,
 #ifdef CONFIG_MSM_BUS_SCALING

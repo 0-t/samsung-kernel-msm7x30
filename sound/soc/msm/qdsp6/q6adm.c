@@ -65,18 +65,6 @@ static int32_t adm_callback(struct apr_client_data *data, void *priv)
 			}
 			this_adm.apr = NULL;
 		}
-		pr_debug("Resetting calibration blocks");
-		for (i = 0; i < MAX_AUDPROC_TYPES; i++) {
-			/* Device calibration */
-			mem_addr_audproc[i].cal_size = 0;
-			mem_addr_audproc[i].cal_kvaddr = 0;
-			mem_addr_audproc[i].cal_paddr = 0;
-
-			/* Volume calibration */
-			mem_addr_audvol[i].cal_size = 0;
-			mem_addr_audvol[i].cal_kvaddr = 0;
-			mem_addr_audvol[i].cal_paddr = 0;
-		}
 		return 0;
 	}
 
@@ -340,7 +328,9 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology)
 			if ((open.topology_id ==
 				VPM_TX_SM_ECNS_COPP_TOPOLOGY) ||
 			    (open.topology_id ==
-				VPM_TX_DM_FLUENCE_COPP_TOPOLOGY))
+				VPM_TX_DM_FLUENCE_COPP_TOPOLOGY) ||
+			    (open.topology_id ==
+				VPM_TX_QMIC_FLUENCE_COPP_TOPOLOGY))
 				rate = 16000;
 		}
 

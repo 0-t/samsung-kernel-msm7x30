@@ -240,13 +240,6 @@ int q6asm_audio_client_buf_free(unsigned int dir,
 
 		while (cnt >= 0) {
 			if (port->buf[cnt].data) {
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-				ion_unmap_kernel(port->buf[cnt].client,
-						port->buf[cnt].handle);
-				ion_free(port->buf[cnt].client,
-						port->buf[cnt].handle);
-				ion_client_destroy(port->buf[cnt].client);
-#else
 				pr_debug("%s:data[%p]phys[%p][%p] cnt[%d]"
 					 "mem_buffer[%p]\n",
 					__func__, (void *)port->buf[cnt].data,
@@ -266,7 +259,6 @@ int q6asm_audio_client_buf_free(unsigned int dir,
 				free_contiguous_memory_by_paddr(
 					port->buf[cnt].phys);
 
-#endif
 				port->buf[cnt].data = NULL;
 				port->buf[cnt].phys = 0;
 				--(port->max_buf_cnt);
@@ -303,19 +295,6 @@ int q6asm_audio_client_buf_free_contiguous(unsigned int dir,
 	}
 
 	if (port->buf[0].data) {
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-		ion_unmap_kernel(port->buf[0].client, port->buf[0].handle);
-		ion_free(port->buf[0].client, port->buf[0].handle);
-		ion_client_destroy(port->buf[0].client);
-		pr_debug("%s:data[%p]phys[%p][%p]"
-			", client[%p] handle[%p]\n",
-			__func__,
-			(void *)port->buf[0].data,
-			(void *)port->buf[0].phys,
-			(void *)&port->buf[0].phys,
-			(void *)port->buf[0].client,
-			(void *)port->buf[0].handle);
-#else
 		pr_debug("%s:data[%p]phys[%p][%p]"
 			"mem_buffer[%p]\n",
 			__func__,
@@ -334,7 +313,6 @@ int q6asm_audio_client_buf_free_contiguous(unsigned int dir,
 					" failed\n", __func__);
 		}
 		free_contiguous_memory_by_paddr(port->buf[0].phys);
-#endif
 	}
 
 	while (cnt >= 0) {
@@ -487,9 +465,6 @@ int q6asm_audio_client_buf_alloc(unsigned int dir,
 	int cnt = 0;
 	int rc = 0;
 	struct audio_buffer *buf;
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-	int len;
-#endif
 
 	if (!(ac) || ((dir != IN) && (dir != OUT)))
 		return -EINVAL;
@@ -519,50 +494,6 @@ int q6asm_audio_client_buf_alloc(unsigned int dir,
 		while (cnt < bufcnt) {
 			if (bufsz > 0) {
 				if (!buf[cnt].data) {
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-					buf[cnt].client = msm_ion_client_create
-						(UINT_MAX, "audio_client");
-					if (IS_ERR_OR_NULL((void *)
-						buf[cnt].client)) {
-						pr_err("%s: ION create client"
-						" for AUDIO failed\n",
-						__func__);
-						goto fail;
-					}
-					buf[cnt].handle = ion_alloc
-						(buf[cnt].client, bufsz, SZ_4K,
-						(0x1 << ION_AUDIO_HEAP_ID));
-					if (IS_ERR_OR_NULL((void *)
-						buf[cnt].handle)) {
-						pr_err("%s: ION memory"
-					" allocation for AUDIO failed\n",
-							__func__);
-						goto fail;
-					}
-
-					rc = ion_phys(buf[cnt].client,
-						buf[cnt].handle,
-						(ion_phys_addr_t *)
-						&buf[cnt].phys,
-						(size_t *)&len);
-					if (rc) {
-						pr_err("%s: ION Get Physical"
-						" for AUDIO failed, rc = %d\n",
-							__func__, rc);
-						goto fail;
-					}
-
-					buf[cnt].data = ion_map_kernel
-					(buf[cnt].client, buf[cnt].handle,
-							 0);
-					if (IS_ERR_OR_NULL((void *)
-						buf[cnt].data)) {
-						pr_err("%s: ION memory"
-				" mapping for AUDIO failed\n", __func__);
-						goto fail;
-					}
-					memset((void *)buf[cnt].data, 0, bufsz);
-#else
 					unsigned int flags = 0;
 					buf[cnt].phys =
 					allocate_contiguous_ebi_nomap(bufsz,
@@ -595,15 +526,16 @@ int q6asm_audio_client_buf_alloc(unsigned int dir,
 						mutex_unlock(&ac->cmd_lock);
 						goto fail;
 					}
-#endif
 					buf[cnt].used = 1;
 					buf[cnt].size = bufsz;
 					buf[cnt].actual_size = bufsz;
-					pr_debug("%s data[%p]phys[%p][%p]\n",
+					pr_debug("%s data[%p]phys[%p][%p]"
+						 "mem_buffer[%p]\n",
 						__func__,
 					   (void *)buf[cnt].data,
 					   (void *)buf[cnt].phys,
-					   (void *)&buf[cnt].phys);
+					   (void *)&buf[cnt].phys,
+					   (void *)buf[cnt].mem_buffer);
 					cnt++;
 				}
 			}
@@ -630,12 +562,9 @@ int q6asm_audio_client_buf_alloc_contiguous(unsigned int dir,
 {
 	int cnt = 0;
 	int rc = 0;
-	struct audio_buffer *buf;
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-	int len;
-#else
 	int flags = 0;
-#endif
+	struct audio_buffer *buf;
+
 	if (!(ac) || ((dir != IN) && (dir != OUT)))
 		return -EINVAL;
 
@@ -661,35 +590,6 @@ int q6asm_audio_client_buf_alloc_contiguous(unsigned int dir,
 
 	ac->port[dir].buf = buf;
 
-#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
-	buf[0].client = msm_ion_client_create(UINT_MAX, "audio_client");
-	if (IS_ERR_OR_NULL((void *)buf[0].client)) {
-		pr_err("%s: ION create client for AUDIO failed\n", __func__);
-		goto fail;
-	}
-	buf[0].handle = ion_alloc(buf[0].client, bufsz * bufcnt, SZ_4K,
-				  (0x1 << ION_AUDIO_HEAP_ID));
-	if (IS_ERR_OR_NULL((void *) buf[0].handle)) {
-		pr_err("%s: ION memory allocation for AUDIO failed\n",
-			__func__);
-		goto fail;
-	}
-
-	rc = ion_phys(buf[0].client, buf[0].handle,
-		  (ion_phys_addr_t *)&buf[0].phys, (size_t *)&len);
-	if (rc) {
-		pr_err("%s: ION Get Physical for AUDIO failed, rc = %d\n",
-			__func__, rc);
-		goto fail;
-	}
-
-	buf[0].data = ion_map_kernel(buf[0].client, buf[0].handle, 0);
-	if (IS_ERR_OR_NULL((void *) buf[0].data)) {
-		pr_err("%s: ION memory mapping for AUDIO failed\n", __func__);
-		goto fail;
-	}
-	memset((void *)buf[0].data, 0, (bufsz * bufcnt));
-#else
 	buf[0].phys = allocate_contiguous_ebi_nomap(bufsz * bufcnt,
 						SZ_4K);
 	if (!buf[0].phys) {
@@ -712,7 +612,6 @@ int q6asm_audio_client_buf_alloc_contiguous(unsigned int dir,
 		goto fail;
 	}
 	buf[0].data = buf[0].mem_buffer->vaddr;
-#endif
 	if (!buf[0].data) {
 		pr_err("%s:invalid vaddr,"
 			" iomap failed\n", __func__);
@@ -810,7 +709,6 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 	uint32_t token;
 	unsigned long dsp_flags;
 	uint32_t *payload;
-	uint32_t wakeup_flag = 1;
 
 
 	if ((ac == NULL) || (data == NULL)) {
@@ -822,13 +720,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			ac->session);
 		return -EINVAL;
 	}
-	if (atomic_read(&ac->nowait_cmd_cnt) > 0) {
-		pr_debug("%s: nowait_cmd_cnt %d\n",
-				__func__,
-				atomic_read(&ac->nowait_cmd_cnt));
-		atomic_dec(&ac->nowait_cmd_cnt);
-		wakeup_flag = 0;
-	}
+
 	payload = data->payload;
 
 	if (data->opcode == RESET_EVENTS) {
@@ -872,7 +764,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 		case ASM_STREAM_CMD_OPEN_READWRITE:
 		case ASM_DATA_CMD_MEDIA_FORMAT_UPDATE:
 		case ASM_STREAM_CMD_SET_ENCDEC_PARAM:
-			if (atomic_read(&ac->cmd_state) && wakeup_flag) {
+			if (atomic_read(&ac->cmd_state)) {
 				atomic_set(&ac->cmd_state, 0);
 				wake_up(&ac->cmd_wait);
 			}
@@ -1510,12 +1402,12 @@ int q6asm_run_nowait(struct audio_client *ac, uint32_t flags,
 	run.flags    = flags;
 	run.msw_ts   = msw_ts;
 	run.lsw_ts   = lsw_ts;
+
 	rc = apr_send_pkt(ac->apr, (uint32_t *) &run);
 	if (rc < 0) {
 		pr_err("%s:Commmand run failed[%d]", __func__, rc);
 		return -EINVAL;
 	}
-	atomic_inc(&ac->nowait_cmd_cnt);
 	return 0;
 }
 
@@ -3310,13 +3202,11 @@ int q6asm_cmd_nowait(struct audio_client *ac, int cmd)
 	pr_debug("%s:session[%d]opcode[0x%x] ", __func__,
 						ac->session,
 						hdr.opcode);
-
 	rc = apr_send_pkt(ac->apr, (uint32_t *) &hdr);
 	if (rc < 0) {
 		pr_err("%s:Commmand 0x%x failed\n", __func__, hdr.opcode);
 		goto fail_cmd;
 	}
-	atomic_inc(&ac->nowait_cmd_cnt);
 	return 0;
 fail_cmd:
 	return -EINVAL;

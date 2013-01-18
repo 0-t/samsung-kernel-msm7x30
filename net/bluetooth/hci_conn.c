@@ -493,24 +493,6 @@ static void hci_conn_rssi_update(struct work_struct *work)
 	hci_read_rssi(conn);
 }
 
-static void encryption_disabled_timeout(unsigned long userdata)
-{
-	struct hci_conn *conn = (struct hci_conn *)userdata;
-	BT_INFO("conn %p Grace Prd Exp ", conn);
-
-	hci_encrypt_cfm(conn, 0, 0);
-
-	if (test_bit(HCI_CONN_ENCRYPT_PEND, &conn->pend)) {
-		struct hci_cp_set_conn_encrypt cp;
-		BT_INFO("HCI_CONN_ENCRYPT_PEND is set");
-		cp.handle  = cpu_to_le16(conn->handle);
-		cp.encrypt = 1;
-		hci_send_cmd(conn->hdev, HCI_OP_SET_CONN_ENCRYPT,
-						sizeof(cp), &cp);
-	}
-
-}
-
 struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type,
 					__u16 pkt_type, bdaddr_t *dst)
 {
@@ -564,8 +546,6 @@ struct hci_conn *hci_conn_add(struct hci_dev *hdev, int type,
 	setup_timer(&conn->disc_timer, hci_conn_timeout, (unsigned long)conn);
 	setup_timer(&conn->idle_timer, hci_conn_idle, (unsigned long)conn);
 	INIT_DELAYED_WORK(&conn->rssi_update_work, hci_conn_rssi_update);
-	setup_timer(&conn->encrypt_pause_timer, encryption_disabled_timeout,
-			(unsigned long)conn);
 
 	atomic_set(&conn->refcnt, 0);
 
@@ -609,7 +589,6 @@ int hci_conn_del(struct hci_conn *conn)
 	del_timer(&conn->disc_timer);
 	del_timer(&conn->smp_timer);
 	__cancel_delayed_work(&conn->rssi_update_work);
-	del_timer(&conn->encrypt_pause_timer);
 
 	if (conn->type == ACL_LINK) {
 		struct hci_conn *sco = conn->link;
@@ -670,7 +649,6 @@ struct hci_chan *hci_chan_add(struct hci_dev *hdev)
 
 	return chan;
 }
-EXPORT_SYMBOL(hci_chan_add);
 
 int hci_chan_del(struct hci_chan *chan)
 {
@@ -975,10 +953,6 @@ int hci_conn_security(struct hci_conn *conn, __u8 sec_level, __u8 auth_type)
 
 	if (hci_conn_auth(conn, sec_level, auth_type)) {
 		struct hci_cp_set_conn_encrypt cp;
-		if (timer_pending(&conn->encrypt_pause_timer)) {
-			BT_INFO("encrypt_pause_timer is pending");
-			return 0;
-		}
 		cp.handle  = cpu_to_le16(conn->handle);
 		cp.encrypt = 1;
 		hci_send_cmd(conn->hdev, HCI_OP_SET_CONN_ENCRYPT,
@@ -1032,9 +1006,6 @@ void hci_conn_enter_active_mode(struct hci_conn *conn, __u8 force_active)
 	BT_DBG("conn %p mode %d", conn, conn->mode);
 
 	if (test_bit(HCI_RAW, &hdev->flags))
-		return;
-
-	if (conn->type == LE_LINK)
 		return;
 
 	if (conn->mode != HCI_CM_SNIFF)
@@ -1102,9 +1073,6 @@ void hci_conn_enter_sniff_mode(struct hci_conn *conn)
 	if (test_bit(HCI_RAW, &hdev->flags))
 		return;
 
-	if (conn->type == LE_LINK)
-		return;
-
 	if (!lmp_sniff_capable(hdev) || !lmp_sniff_capable(conn))
 		return;
 
@@ -1133,12 +1101,18 @@ void hci_conn_enter_sniff_mode(struct hci_conn *conn)
 	}
 }
 
-struct hci_chan *hci_chan_create(struct hci_chan *chan,
+struct hci_chan *hci_chan_accept(struct hci_conn *conn,
 			struct hci_ext_fs *tx_fs, struct hci_ext_fs *rx_fs)
 {
+	struct hci_chan *chan;
 	struct hci_cp_create_logical_link cp;
 
+	chan = hci_chan_add(conn->hdev);
+	if (!chan)
+		return NULL;
+
 	chan->state = BT_CONNECT;
+	chan->conn = conn;
 	chan->tx_fs = *tx_fs;
 	chan->rx_fs = *rx_fs;
 	cp.phy_handle = chan->conn->handle;
@@ -1155,12 +1129,40 @@ struct hci_chan *hci_chan_create(struct hci_chan *chan,
 	cp.rx_fs.acc_latency = cpu_to_le32(chan->rx_fs.acc_latency);
 	cp.rx_fs.flush_to = cpu_to_le32(chan->rx_fs.flush_to);
 	hci_conn_hold(chan->conn);
-	if (chan->conn->out)
-		hci_send_cmd(chan->conn->hdev, HCI_OP_CREATE_LOGICAL_LINK,
-							sizeof(cp), &cp);
-	else
-		hci_send_cmd(chan->conn->hdev, HCI_OP_ACCEPT_LOGICAL_LINK,
-							sizeof(cp), &cp);
+	hci_send_cmd(conn->hdev, HCI_OP_ACCEPT_LOGICAL_LINK, sizeof(cp), &cp);
+	return chan;
+}
+EXPORT_SYMBOL(hci_chan_accept);
+
+struct hci_chan *hci_chan_create(struct hci_conn *conn,
+			struct hci_ext_fs *tx_fs, struct hci_ext_fs *rx_fs)
+{
+	struct hci_chan *chan;
+	struct hci_cp_create_logical_link cp;
+
+	chan = hci_chan_add(conn->hdev);
+	if (!chan)
+		return NULL;
+
+	chan->state = BT_CONNECT;
+	chan->conn = conn;
+	chan->tx_fs = *tx_fs;
+	chan->rx_fs = *rx_fs;
+	cp.phy_handle = chan->conn->handle;
+	cp.tx_fs.id = chan->tx_fs.id;
+	cp.tx_fs.type = chan->tx_fs.type;
+	cp.tx_fs.max_sdu = cpu_to_le16(chan->tx_fs.max_sdu);
+	cp.tx_fs.sdu_arr_time = cpu_to_le32(chan->tx_fs.sdu_arr_time);
+	cp.tx_fs.acc_latency = cpu_to_le32(chan->tx_fs.acc_latency);
+	cp.tx_fs.flush_to = cpu_to_le32(chan->tx_fs.flush_to);
+	cp.rx_fs.id = chan->rx_fs.id;
+	cp.rx_fs.type = chan->rx_fs.type;
+	cp.rx_fs.max_sdu = cpu_to_le16(chan->rx_fs.max_sdu);
+	cp.rx_fs.sdu_arr_time = cpu_to_le32(chan->rx_fs.sdu_arr_time);
+	cp.rx_fs.acc_latency = cpu_to_le32(chan->rx_fs.acc_latency);
+	cp.rx_fs.flush_to = cpu_to_le32(chan->rx_fs.flush_to);
+	hci_conn_hold(chan->conn);
+	hci_send_cmd(conn->hdev, HCI_OP_CREATE_LOGICAL_LINK, sizeof(cp), &cp);
 	return chan;
 }
 EXPORT_SYMBOL(hci_chan_create);

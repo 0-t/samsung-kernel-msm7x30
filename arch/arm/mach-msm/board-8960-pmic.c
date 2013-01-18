@@ -402,15 +402,13 @@ static int pm8921_therm_mitigation[] = {
 };
 
 #define MAX_VOLTAGE_MV		4200
-#define CHG_TERM_MA		100
 static struct pm8921_charger_platform_data pm8921_chg_pdata __devinitdata = {
 	.safety_time		= 180,
 	.update_time		= 60000,
 	.max_voltage		= MAX_VOLTAGE_MV,
 	.min_voltage		= 3200,
-	.uvd_thresh_voltage	= 4050,
 	.resume_voltage_delta	= 100,
-	.term_current		= CHG_TERM_MA,
+	.term_current		= 100,
 	.cool_temp		= 10,
 	.warm_temp		= 40,
 	.temp_check_period	= 1,
@@ -421,7 +419,6 @@ static struct pm8921_charger_platform_data pm8921_chg_pdata __devinitdata = {
 	.warm_bat_voltage	= 4100,
 	.thermal_mitigation	= pm8921_therm_mitigation,
 	.thermal_levels		= ARRAY_SIZE(pm8921_therm_mitigation),
-	.rconn_mohm		= 18,
 };
 
 static struct pm8xxx_misc_platform_data pm8xxx_misc_pdata = {
@@ -429,14 +426,11 @@ static struct pm8xxx_misc_platform_data pm8xxx_misc_pdata = {
 };
 
 static struct pm8921_bms_platform_data pm8921_bms_pdata __devinitdata = {
-	.battery_type			= BATT_UNKNOWN,
-	.r_sense			= 10,
-	.v_cutoff			= 3400,
-	.max_voltage_uv			= MAX_VOLTAGE_MV * 1000,
-	.rconn_mohm			= 18,
-	.shutdown_soc_valid_limit	= 20,
-	.adjust_soc_low_threshold	= 25,
-	.chg_term_ua			= CHG_TERM_MA * 1000,
+	.r_sense		= 10,
+	.i_test			= 2500,
+	.v_failure		= 3000,
+	.calib_delay_ms		= 600000,
+	.max_voltage_uv		= MAX_VOLTAGE_MV * 1000,
 };
 
 #define	PM8921_LC_LED_MAX_CURRENT	4	/* I = 4mA */
@@ -461,7 +455,6 @@ static struct led_info pm8921_led_info_liquid[] = {
 	{
 		.name		= "led:blue",
 		.flags		= PM8XXX_ID_LED_2,
-		.default_trigger	= "notification",
 	},
 };
 
@@ -552,18 +545,6 @@ static struct pm8xxx_led_platform_data pm8xxx_leds_pdata = {
 
 static struct pm8xxx_ccadc_platform_data pm8xxx_ccadc_pdata = {
 	.r_sense		= 10,
-	.calib_delay_ms		= 600000,
-};
-
-/**
- * PM8XXX_PWM_DTEST_CHANNEL_NONE shall be used when no LPG
- * channel should be in DTEST mode.
- */
-
-#define PM8XXX_PWM_DTEST_CHANNEL_NONE   (-1)
-
-static struct pm8xxx_pwm_platform_data pm8xxx_pwm_pdata = {
-	.dtest_channel	= PM8XXX_PWM_DTEST_CHANNEL_NONE,
 };
 
 static struct pm8921_platform_data pm8921_platform_data __devinitdata = {
@@ -580,7 +561,6 @@ static struct pm8921_platform_data pm8921_platform_data __devinitdata = {
 	.adc_pdata		= &pm8xxx_adc_pdata,
 	.leds_pdata		= &pm8xxx_leds_pdata,
 	.ccadc_pdata		= &pm8xxx_ccadc_pdata,
-	.pwm_pdata		= &pm8xxx_pwm_pdata,
 };
 
 static struct msm_ssbi_platform_data msm8960_ssbi_pm8921_pdata __devinitdata = {
@@ -605,13 +585,5 @@ void __init msm8960_init_pmic(void)
 	if (machine_is_msm8960_liquid()) {
 		pm8921_platform_data.keypad_pdata = &keypad_data_liquid;
 		pm8921_platform_data.leds_pdata = &pm8xxx_leds_pdata_liquid;
-		pm8921_platform_data.bms_pdata->battery_type = BATT_DESAY;
-	} else if (machine_is_msm8960_mtp()) {
-		pm8921_platform_data.bms_pdata->battery_type = BATT_PALLADIUM;
-	} else if (machine_is_msm8960_cdp()) {
-		pm8921_chg_pdata.has_dc_supply = true;
 	}
-
-	if (machine_is_msm8960_fluid())
-		pm8921_bms_pdata.rconn_mohm = 20;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -54,10 +54,10 @@ static struct msm_mmc_reg_data mmc_vdd_reg_data[MAX_SDCC_CONTROLLER] = {
 };
 
 /* All SDCC controllers may require voting for VDD PAD voltage */
-static struct msm_mmc_reg_data mmc_vdd_io_reg_data[MAX_SDCC_CONTROLLER] = {
+static struct msm_mmc_reg_data mmc_vddp_reg_data[MAX_SDCC_CONTROLLER] = {
 	/* SDCC1 : External card slot connected */
 	[SDCC1] = {
-		.name = "sdc_vdd_io",
+		.name = "sdc_vddp",
 		.high_vol_level = 2950000,
 		.low_vol_level = 1850000,
 		.always_on = true,
@@ -77,7 +77,7 @@ static struct msm_mmc_slot_reg_data mmc_slot_vreg_data[MAX_SDCC_CONTROLLER] = {
 	/* SDCC1 : External card slot connected */
 	[SDCC1] = {
 		.vdd_data = &mmc_vdd_reg_data[SDCC1],
-		.vdd_io_data = &mmc_vdd_io_reg_data[SDCC1],
+		.vddp_data = &mmc_vddp_reg_data[SDCC1],
 	}
 };
 
@@ -164,8 +164,6 @@ static struct msm_mmc_pin_data mmc_slot_pin_data[MAX_SDCC_CONTROLLER] = {
 #endif
 };
 
-#define MSM_MPM_PIN_SDC1_DAT1	17
-
 #ifdef CONFIG_MMC_MSM_SDC1_SUPPORT
 static unsigned int sdc1_sup_clk_rates[] = {
 	400000, 24000000, 48000000
@@ -187,7 +185,6 @@ static struct mmc_platform_data sdc1_data = {
 	.xpc_cap	= 1,
 	.uhs_caps	= (MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
 			   MMC_CAP_MAX_CURRENT_400),
-	.mpm_sdiowakeup_int = MSM_MPM_PIN_SDC1_DAT1,
 	.msm_bus_voting_data = &sps_to_ddr_bus_voting_data,
 };
 static struct mmc_platform_data *msm9615_sdc1_pdata = &sdc1_data;
@@ -207,7 +204,9 @@ static struct mmc_platform_data sdc2_data = {
 	.sup_clk_cnt	= ARRAY_SIZE(sdc2_sup_clk_rates),
 	.pclk_src_dfab	= 1,
 	.pin_data	= &mmc_slot_pin_data[SDCC2],
+#ifdef CONFIG_MMC_MSM_SDIO_SUPPORT
 	.sdiowakeup_irq = MSM_GPIO_TO_INT(GPIO_SDC2_DAT1_WAKEUP),
+#endif
 	.msm_bus_voting_data = &sps_to_ddr_bus_voting_data,
 };
 static struct mmc_platform_data *msm9615_sdc2_pdata = &sdc2_data;

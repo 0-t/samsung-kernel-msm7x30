@@ -87,7 +87,7 @@
 #include "pm.h"
 #include <mach/cpuidle.h>
 #include "rpm_resources.h"
-#include <mach/mpm.h>
+#include "mpm.h"
 #include "acpuclock.h"
 #include "rpm_log.h"
 #include "smd_private.h"
@@ -318,7 +318,6 @@ static int msm8930_paddr_to_memtype(unsigned int paddr)
 	return MEMTYPE_EBI1;
 }
 
-#define FMEM_ENABLED 0
 #ifdef CONFIG_ION_MSM
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
 static struct ion_cp_heap_pdata cp_mm_ion_pdata = {
@@ -855,6 +854,12 @@ static void __init msm8930_init_irq(void)
 	msm_mpm_irq_extn_init();
 	gic_init(0, GIC_PPI_START, MSM_QGIC_DIST_BASE,
 						(void *)MSM_QGIC_CPU_BASE);
+
+	/* Edge trigger PPIs except AVS_SVICINT and AVS_SVICINTSWDONE */
+	writel_relaxed(0xFFFFD7FF, MSM_QGIC_DIST_BASE + GIC_DIST_CONFIG + 4);
+
+	writel_relaxed(0x0000FFFF, MSM_QGIC_DIST_BASE + GIC_DIST_ENABLE_SET);
+	mb();
 }
 
 static void __init msm8930_init_buses(void)
@@ -1479,7 +1484,7 @@ static struct attribute_group mxt224e_properties_attr_group = {
 
 static void mxt_init_vkeys_8930(void)
 {
-	int rc;
+	int rc = 0;
 	static struct kobject *mxt224e_properties_kobj;
 
 	mxt224e_vkeys_attr.attr.name = "virtualkeys.atmel_mxt_ts";
@@ -1495,28 +1500,11 @@ static void mxt_init_vkeys_8930(void)
 	return;
 }
 
-static struct mxt_config_info mxt_config_array[] = {
-	{
-		.config			= mxt_config_data_8930,
-		.config_length		= ARRAY_SIZE(mxt_config_data_8930),
-		.family_id		= 0x81,
-		.variant_id		= 0x01,
-		.version		= 0x10,
-		.build			= 0xAA,
-	},
-};
-
 static struct mxt_platform_data mxt_platform_data_8930 = {
-	.config_array		= mxt_config_array,
-	.config_array_size	= ARRAY_SIZE(mxt_config_array),
-	.panel_minx		= 0,
-	.panel_maxx		= 566,
-	.panel_miny		= 0,
-	.panel_maxy		= 1067,
-	.disp_minx		= 0,
-	.disp_maxx		= 540,
-	.disp_miny		= 0,
-	.disp_maxy		= 960,
+	.config			= mxt_config_data_8930,
+	.config_length		= ARRAY_SIZE(mxt_config_data_8930),
+	.x_size			= 1067,
+	.y_size			= 566,
 	.irqflags		= IRQF_TRIGGER_FALLING,
 #ifdef MSM8930_PHASE_2
 	.digital_pwr_regulator	= true,

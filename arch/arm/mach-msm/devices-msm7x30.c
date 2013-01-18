@@ -26,7 +26,7 @@
 #include <mach/dma.h>
 #include <mach/board.h>
 #include <asm/clkdev.h>
-
+#include <linux/ion.h>
 #include "devices.h"
 #include "gpio_hw.h"
 #include "footswitch.h"
@@ -566,7 +566,9 @@ struct platform_device msm_device_otg = {
 };
 
 struct flash_platform_data msm_nand_data = {
-	.version = VERSION_2,
+	.parts		= NULL,
+	.nr_parts	= 0,
+	.interleave     = 0,
 };
 
 struct platform_device msm_device_nand = {
@@ -579,67 +581,9 @@ struct platform_device msm_device_nand = {
 	},
 };
 
-static struct resource smd_resource[] = {
-	{
-		.name   = "a9_m2a_0",
-		.start  = INT_A9_M2A_0,
-		.flags  = IORESOURCE_IRQ,
-	},
-	{
-		.name   = "a9_m2a_5",
-		.start  = INT_A9_M2A_5,
-		.flags  = IORESOURCE_IRQ,
-	},
-	{
-		.name   = "adsp_a11_smsm",
-		.start  = INT_ADSP_A11,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-static struct smd_subsystem_config smd_config_list[] = {
-	{
-		.irq_config_id = SMD_MODEM,
-		.subsys_name = "modem",
-		.edge = SMD_APPS_MODEM,
-
-		.smd_int.irq_name = "a9_m2a_0",
-		.smd_int.flags = IRQF_TRIGGER_RISING,
-		.smd_int.irq_id = -1,
-		.smd_int.device_name = "smd_dev",
-		.smd_int.dev_id = 0,
-
-		.smd_int.out_bit_pos =  1 << 0,
-		.smd_int.out_base = (void __iomem *)MSM_GCC_BASE,
-		.smd_int.out_offset = 0x8,
-
-		.smsm_int.irq_name = "a9_m2a_5",
-		.smsm_int.flags = IRQF_TRIGGER_RISING,
-		.smsm_int.irq_id = -1,
-		.smsm_int.device_name = "smd_dev",
-		.smsm_int.dev_id = 0,
-
-		.smsm_int.out_bit_pos =  1 << 5,
-		.smsm_int.out_base = (void __iomem *)MSM_GCC_BASE,
-		.smsm_int.out_offset = 0x8,
-
-	}
-};
-
-static struct smd_platform smd_platform_data = {
-	.num_ss_configs = ARRAY_SIZE(smd_config_list),
-	.smd_ss_configs = smd_config_list,
-};
-
 struct platform_device msm_device_smd = {
 	.name	= "msm_smd",
 	.id	= -1,
-	.resource = smd_resource,
-	.num_resources = ARRAY_SIZE(smd_resource),
-	.dev = {
-		.platform_data = &smd_platform_data,
-	}
-
 };
 
 static struct resource msm_dmov_resource[] = {
@@ -711,8 +655,8 @@ static struct resource resources_sdc2[] = {
 	},
 	{
 		.name	= "sdcc_dma_chnl",
-		.start	= DMOV_NAND_CHAN,
-		.end	= DMOV_NAND_CHAN,
+		.start	= DMOV_SDC2_CHAN,
+		.end	= DMOV_SDC2_CHAN,
 		.flags	= IORESOURCE_DMA,
 	},
 	{
@@ -846,9 +790,10 @@ static struct resource msm_vidc_720p_resources[] = {
 };
 
 struct msm_vidc_platform_data vidc_platform_data = {
-	.memtype = MEMTYPE_EBI0,
-	.enable_ion = 0,
-	.disable_dmx = 0
+	.memtype = ION_CAMERA_HEAP_ID,
+	.enable_ion = 1,
+	.disable_dmx = 0,
+	.cont_mode_dpb_count = 8
 };
 
 struct platform_device msm_device_vidc_720p = {
@@ -1212,7 +1157,7 @@ static struct resource kgsl_2d0_resources[] = {
 static struct kgsl_device_platform_data kgsl_2d0_pdata = {
 	.pwrlevel = {
 		{
-			.gpu_freq = 192000000,
+			.gpu_freq = 0,
 			.bus_freq = 192000000,
 		},
 	},

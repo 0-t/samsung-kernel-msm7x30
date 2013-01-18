@@ -50,7 +50,6 @@
 #include <asm/mach/mmc.h>
 
 #include <mach/board.h>
-#include <mach/msm_tspp.h>
 #include <mach/msm_iomap.h>
 #include <mach/msm_spi.h>
 #ifdef CONFIG_USB_MSM_OTG_72K
@@ -96,7 +95,7 @@
 #include "pm.h"
 #include <mach/cpuidle.h>
 #include "rpm_resources.h"
-#include <mach/mpm.h>
+#include "mpm.h"
 #include "acpuclock.h"
 #include "rpm_log.h"
 #include "smd_private.h"
@@ -147,14 +146,15 @@ struct sx150x_platform_data msm8960_sx150x_data[] = {
 #ifdef CONFIG_MSM_IOMMU
 #define MSM_ION_MM_SIZE            0x3800000
 #define MSM_ION_SF_SIZE            0x0
+#define MSM_ION_QSECOM_SIZE        0x780000 /* (7.5MB) */
 #define MSM_ION_HEAP_NUM	7
 #else
 #define MSM_ION_MM_SIZE            MSM_PMEM_ADSP_SIZE
 #define MSM_ION_SF_SIZE            MSM_PMEM_SIZE
+#define MSM_ION_QSECOM_SIZE        0x600000 /* (6MB) */
 #define MSM_ION_HEAP_NUM	8
 #endif
 #define MSM_ION_MM_FW_SIZE	0x200000 /* (2MB) */
-#define MSM_ION_QSECOM_SIZE	0x600000 /* (6MB) */
 #define MSM_ION_MFC_SIZE	SZ_8K
 #define MSM_ION_AUDIO_SIZE	MSM_PMEM_AUDIO_SIZE
 
@@ -162,11 +162,10 @@ struct sx150x_platform_data msm8960_sx150x_data[] = {
 #define MSM_LIQUID_ION_SF_SIZE MSM_LIQUID_PMEM_SIZE
 #define MSM_HDMI_PRIM_ION_SF_SIZE MSM_HDMI_PRIM_PMEM_SIZE
 
-#define MSM_MM_FW_SIZE		0x200000
-#define MSM8960_FIXED_AREA_START (0xb0000000 - MSM_MM_FW_SIZE)
+#define MSM8960_FIXED_AREA_START 0xb0000000
 #define MAX_FIXED_AREA_SIZE	0x10000000
-#define MSM8960_FW_START	(MSM8960_FIXED_AREA_START)
-#define HOLE_SIZE		0x100000
+#define MSM_MM_FW_SIZE		0x200000
+#define MSM8960_FW_START	(MSM8960_FIXED_AREA_START - MSM_MM_FW_SIZE)
 
 static unsigned msm_ion_sf_size = MSM_ION_SF_SIZE;
 #else
@@ -331,7 +330,7 @@ static void __init size_pmem_devices(void)
 	if (!pmem_param_set) {
 		if (machine_is_msm8960_liquid())
 			pmem_size = MSM_LIQUID_PMEM_SIZE;
-		if (hdmi_is_primary)
+		if (msm8960_hdmi_as_primary_selected())
 			pmem_size = MSM_HDMI_PRIM_PMEM_SIZE;
 	}
 
@@ -363,7 +362,7 @@ static int msm8960_paddr_to_memtype(unsigned int paddr)
 	return MEMTYPE_EBI1;
 }
 
-#define FMEM_ENABLED 0
+#define FMEM_ENABLED 1
 
 #ifdef CONFIG_ION_MSM
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
@@ -499,10 +498,11 @@ static void __init adjust_mem_for_liquid(void)
 		if (machine_is_msm8960_liquid())
 			msm_ion_sf_size = MSM_LIQUID_ION_SF_SIZE;
 
-		if (hdmi_is_primary)
+		if (msm8960_hdmi_as_primary_selected())
 			msm_ion_sf_size = MSM_HDMI_PRIM_ION_SF_SIZE;
 
-		if (machine_is_msm8960_liquid() || hdmi_is_primary) {
+		if (machine_is_msm8960_liquid() ||
+			msm8960_hdmi_as_primary_selected()) {
 			for (i = 0; i < ion_pdata.nr; i++) {
 				if (ion_pdata.heaps[i].id == ION_SF_HEAP_ID) {
 					ion_pdata.heaps[i].size =
@@ -657,14 +657,14 @@ static void __init reserve_ion_memory(void)
 		return;
 
 	if (fmem_pdata.size) {
-		fmem_pdata.reserved_size_low = fixed_low_size + HOLE_SIZE;
+		fmem_pdata.reserved_size_low = fixed_low_size;
 		fmem_pdata.reserved_size_high = fixed_high_size;
 	}
 
-	msm8960_reserve_fixed_area(fixed_size + HOLE_SIZE);
+	msm8960_reserve_fixed_area(fixed_size + MSM_MM_FW_SIZE);
 
 	fixed_low_start = MSM8960_FIXED_AREA_START;
-	fixed_middle_start = fixed_low_start + fixed_low_size + HOLE_SIZE;
+	fixed_middle_start = fixed_low_start + fixed_low_size;
 	fixed_high_start = fixed_middle_start + fixed_middle_size;
 
 	for (i = 0; i < ion_pdata.nr; ++i) {
@@ -672,12 +672,9 @@ static void __init reserve_ion_memory(void)
 
 		if (heap->extra_data) {
 			int fixed_position = NOT_FIXED;
-			struct ion_cp_heap_pdata *pdata;
 
 			switch (heap->type) {
 			case ION_HEAP_TYPE_CP:
-				pdata =
-				(struct ion_cp_heap_pdata *)heap->extra_data;
 				fixed_position = ((struct ion_cp_heap_pdata *)
 					heap->extra_data)->fixed_position;
 				break;
@@ -695,9 +692,6 @@ static void __init reserve_ion_memory(void)
 				break;
 			case FIXED_MIDDLE:
 				heap->base = fixed_middle_start;
-				pdata->secure_base = fixed_middle_start -
-								HOLE_SIZE;
-				pdata->secure_size = HOLE_SIZE + heap->size;
 				break;
 			case FIXED_HIGH:
 				heap->base = fixed_high_start;
@@ -735,7 +729,6 @@ static void reserve_cache_dump_memory(void)
 #ifdef CONFIG_MSM_CACHE_DUMP
 	unsigned int spare;
 	unsigned int l1_size;
-	unsigned int l2_size;
 	unsigned int total;
 	int ret;
 
@@ -746,18 +739,10 @@ static void reserve_cache_dump_memory(void)
 		/* Fall back to something reasonable here */
 		l1_size = L1_BUFFER_SIZE;
 
-	ret = scm_call(L1C_SERVICE_ID, L2C_BUFFER_GET_SIZE_COMMAND_ID, &spare,
-		sizeof(spare), &l2_size, sizeof(l2_size));
-
-	if (ret)
-		/* Fall back to something reasonable here */
-		l2_size = L2_BUFFER_SIZE;
-
-	total = l1_size + l2_size;
+	total = l1_size + L2_BUFFER_SIZE;
 
 	msm8960_reserve_table[MEMTYPE_EBI1].size += total;
 	msm_cache_dump_pdata.l1_size = l1_size;
-	msm_cache_dump_pdata.l2_size = l2_size;
 #endif
 }
 
@@ -1311,87 +1296,6 @@ static struct platform_device *mdm_devices[] __initdata = {
 	&mdm_device,
 };
 
-#define MSM_TSIF0_PHYS			(0x18200000)
-#define MSM_TSIF1_PHYS			(0x18201000)
-#define MSM_TSIF_SIZE			(0x200)
-#define MSM_TSPP_PHYS			(0x18202000)
-#define MSM_TSPP_SIZE			(0x1000)
-#define MSM_TSPP_BAM_PHYS		(0x18204000)
-#define MSM_TSPP_BAM_SIZE		(0x2000)
-
-#define TSIF_0_CLK       GPIO_CFG(75, 1, GPIO_CFG_INPUT, \
-	GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
-#define TSIF_0_EN        GPIO_CFG(76, 1, GPIO_CFG_INPUT, \
-	GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
-#define TSIF_0_DATA      GPIO_CFG(77, 1, GPIO_CFG_INPUT, \
-	GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
-#define TSIF_0_SYNC      GPIO_CFG(82, 1, GPIO_CFG_INPUT, \
-	GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
-#define TSIF_1_CLK       GPIO_CFG(79, 1, GPIO_CFG_INPUT, \
-	GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
-#define TSIF_1_EN        GPIO_CFG(80, 1, GPIO_CFG_INPUT, \
-	GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
-#define TSIF_1_DATA      GPIO_CFG(81, 1, GPIO_CFG_INPUT, \
-	GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
-#define TSIF_1_SYNC      GPIO_CFG(78, 1, GPIO_CFG_INPUT, \
-	GPIO_CFG_PULL_DOWN, GPIO_CFG_2MA)
-
-static const struct msm_gpio tsif_gpios[] = {
-	{ .gpio_cfg = TSIF_0_CLK,  .label =  "tsif0_clk", },
-	{ .gpio_cfg = TSIF_0_EN,   .label =  "tsif0_en", },
-	{ .gpio_cfg = TSIF_0_DATA, .label =  "tsif0_data", },
-	{ .gpio_cfg = TSIF_0_SYNC, .label =  "tsif0_sync", },
-	{ .gpio_cfg = TSIF_1_CLK,  .label =  "tsif1_clk", },
-	{ .gpio_cfg = TSIF_1_EN,   .label =  "tsif1_en", },
-	{ .gpio_cfg = TSIF_1_DATA, .label =  "tsif1_data", },
-	{ .gpio_cfg = TSIF_1_SYNC, .label =  "tsif1_sync", },
-};
-
-static struct resource tspp_resources[] = {
-	[0] = {
-		.flags = IORESOURCE_IRQ,
-		.start = TSIF_TSPP_IRQ,
-		.end   = TSIF1_IRQ,
-	},
-	[1] = {
-		.flags = IORESOURCE_MEM,
-		.start = MSM_TSIF0_PHYS,
-		.end   = MSM_TSIF0_PHYS + MSM_TSIF_SIZE - 1,
-	},
-	[2] = {
-		.flags = IORESOURCE_MEM,
-		.start = MSM_TSIF1_PHYS,
-		.end   = MSM_TSIF1_PHYS + MSM_TSIF_SIZE - 1,
-	},
-	[3] = {
-		.flags = IORESOURCE_MEM,
-		.start = MSM_TSPP_PHYS,
-		.end   = MSM_TSPP_PHYS + MSM_TSPP_SIZE - 1,
-	},
-	[4] = {
-		.flags = IORESOURCE_MEM,
-		.start = MSM_TSPP_BAM_PHYS,
-		.end   = MSM_TSPP_BAM_PHYS + MSM_TSPP_BAM_SIZE - 1,
-	},
-};
-
-static struct msm_tspp_platform_data tspp_platform_data = {
-	.num_gpios = ARRAY_SIZE(tsif_gpios),
-	.gpios = tsif_gpios,
-	.tsif_pclk = "tsif_pclk",
-	.tsif_ref_clk = "tsif_ref_clk",
-};
-
-static struct platform_device msm_device_tspp = {
-	.name          = "msm_tspp",
-	.id            = 0,
-	.num_resources = ARRAY_SIZE(tspp_resources),
-	.resource      = tspp_resources,
-	.dev = {
-		.platform_data = &tspp_platform_data
-	},
-};
-
 #define MSM_SHARED_RAM_PHYS 0x80000000
 
 static void __init msm8960_map_io(void)
@@ -1408,6 +1312,12 @@ static void __init msm8960_init_irq(void)
 	msm_mpm_irq_extn_init();
 	gic_init(0, GIC_PPI_START, MSM_QGIC_DIST_BASE,
 						(void *)MSM_QGIC_CPU_BASE);
+
+	/* Edge trigger PPIs except AVS_SVICINT and AVS_SVICINTSWDONE */
+	writel_relaxed(0xFFFFD7FF, MSM_QGIC_DIST_BASE + GIC_DIST_CONFIG + 4);
+
+	writel_relaxed(0x0000FFFF, MSM_QGIC_DIST_BASE + GIC_DIST_ENABLE_SET);
+	mb();
 }
 
 static void __init msm8960_init_buses(void)
@@ -1428,7 +1338,6 @@ static void __init msm8960_init_buses(void)
 
 static struct msm_spi_platform_data msm8960_qup_spi_gsbi1_pdata = {
 	.max_clock_speed = 15060000,
-	.infinite_mode	 = 1
 };
 
 #ifdef CONFIG_USB_MSM_OTG_72K
@@ -1939,8 +1848,8 @@ static struct i2c_board_info cyttsp_info[] __initdata = {
 	},
 };
 
-/* configuration data for mxt1386 */
-static const u8 mxt1386_config_data[] = {
+/* configuration data */
+static const u8 mxt_config_data[] = {
 	/* T6 Object */
 	0, 0, 0, 0, 0, 0,
 	/* T38 Object */
@@ -1986,175 +1895,6 @@ static const u8 mxt1386_config_data[] = {
 	0, 0, 0, 0, 0, 0,
 };
 
-/* configuration data for mxt1386e using V1.0 firmware */
-static const u8 mxt1386e_config_data_v1_0[] = {
-	/* T6 Object */
-	0, 0, 0, 0, 0, 0,
-	/* T38 Object */
-	12, 1, 0, 17, 1, 12, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0,
-	/* T7 Object */
-	100, 16, 50,
-	/* T8 Object */
-	25, 0, 20, 20, 0, 0, 20, 50, 0, 0,
-	/* T9 Object */
-	131, 0, 0, 26, 42, 0, 32, 80, 2, 5,
-	0, 5, 5, 0, 10, 30, 10, 10, 255, 2,
-	85, 5, 10, 10, 10, 10, 135, 55, 70, 40,
-	10, 5, 0, 0, 0,
-	/* T18 Object */
-	0, 0,
-	/* T24 Object */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/* T25 Object */
-	3, 0, 60, 115, 156, 99,
-	/* T27 Object */
-	0, 0, 0, 0, 0, 0, 0,
-	/* T40 Object */
-	0, 0, 0, 0, 0,
-	/* T42 Object */
-	2, 0, 255, 0, 255, 0, 0, 0, 0, 0,
-	/* T43 Object */
-	0, 0, 0, 0, 0, 0, 0,
-	/* T46 Object */
-	64, 0, 20, 20, 0, 0, 0, 0, 0,
-	/* T47 Object */
-	0, 0, 0, 0, 0, 0, 3, 64, 66, 0,
-	/* T48 Object */
-	31, 64, 64, 0, 0, 0, 0, 0, 0, 0,
-	48, 40, 0, 10, 10, 0, 0, 100, 10, 80,
-	0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-	52, 0, 12, 0, 17, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0,
-	/* T56 Object */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	2, 99, 33,
-};
-
-/* configuration data for mxt1386e using V2.1 firmware */
-static const u8 mxt1386e_config_data_v2_1[] = {
-	/* T6 Object */
-	0, 0, 0, 0, 0, 0,
-	/* T38 Object */
-	12, 3, 0, 24, 5, 12, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0,
-	/* T7 Object */
-	100, 16, 50,
-	/* T8 Object */
-	25, 0, 20, 20, 0, 0, 20, 50, 0, 0,
-	/* T9 Object */
-	139, 0, 0, 26, 42, 0, 32, 80, 2, 5,
-	0, 5, 5, 0, 10, 30, 10, 10, 255, 2,
-	85, 5, 10, 10, 10, 10, 135, 55, 70, 40,
-	10, 5, 0, 0, 0,
-	/* T18 Object */
-	0, 0,
-	/* T24 Object */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/* T25 Object */
-	1, 0, 60, 115, 156, 99,
-	/* T27 Object */
-	0, 0, 0, 0, 0, 0, 0,
-	/* T40 Object */
-	0, 0, 0, 0, 0,
-	/* T42 Object */
-	0, 0, 255, 0, 255, 0, 0, 0, 0, 0,
-	/* T43 Object */
-	0, 0, 0, 0, 0, 0, 0, 64, 0, 8,
-	16,
-	/* T46 Object */
-	64, 0, 20, 20, 0, 0, 0, 0, 0,
-	/* T47 Object */
-	0, 0, 0, 0, 0, 0, 3, 64, 66, 0,
-	/* T48 Object */
-	1, 64, 64, 0, 0, 0, 0, 0, 0, 0,
-	48, 40, 0, 10, 10, 0, 0, 100, 10, 80,
-	0, 0, 0, 0, 0, 0, 0, 0, 1, 0,
-	52, 0, 12, 0, 17, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0,
-	/* T56 Object */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	2, 99, 33, 0, 149, 24, 193, 255, 255, 255,
-	255,
-};
-
-/* configuration data for mxt1386e on 3D SKU using V2.1 firmware */
-static const u8 mxt1386e_config_data_3d[] = {
-	/* T6 Object */
-	0, 0, 0, 0, 0, 0,
-	/* T38 Object */
-	13, 1, 0, 23, 2, 12, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0,
-	/* T7 Object */
-	100, 10, 50,
-	/* T8 Object */
-	25, 0, 20, 20, 0, 0, 0, 0, 0, 0,
-	/* T9 Object */
-	131, 0, 0, 26, 42, 0, 32, 80, 2, 5,
-	0, 5, 5, 0, 10, 30, 10, 10, 175, 4,
-	127, 7, 26, 21, 17, 19, 143, 35, 207, 40,
-	20, 5, 54, 49, 0,
-	/* T18 Object */
-	0, 0,
-	/* T24 Object */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/* T25 Object */
-	0, 0, 72, 113, 168, 97,
-	/* T27 Object */
-	0, 0, 0, 0, 0, 0, 0,
-	/* T40 Object */
-	0, 0, 0, 0, 0,
-	/* T42 Object */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	/* T43 Object */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0,
-	/* T46 Object */
-	68, 0, 16, 16, 0, 0, 0, 0, 0,
-	/* T47 Object */
-	0, 0, 0, 0, 0, 0, 3, 64, 66, 0,
-	/* T48 Object */
-	31, 64, 64, 0, 0, 0, 0, 0, 0, 0,
-	32, 50, 0, 10, 10, 0, 0, 100, 10, 90,
-	0, 0, 0, 0, 0, 0, 0, 10, 1, 30,
-	52, 10, 5, 0, 33, 0, 1, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0,
-	/* T56 Object */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0,
-};
-
 #define MXT_TS_GPIO_IRQ			11
 #define MXT_TS_LDO_EN_GPIO		50
 #define MXT_TS_RESET_GPIO		52
@@ -2183,87 +1923,11 @@ err_ldo_gpio_req:
 	gpio_free(MXT_TS_LDO_EN_GPIO);
 }
 
-static struct mxt_config_info mxt_config_array_2d[] = {
-	{
-		.config		= mxt1386_config_data,
-		.config_length	= ARRAY_SIZE(mxt1386_config_data),
-		.family_id	= 0xA0,
-		.variant_id	= 0x0,
-		.version	= 0x10,
-		.build		= 0xAA,
-		.bootldr_id	= MXT_BOOTLOADER_ID_1386,
-	},
-	{
-		.config		= mxt1386e_config_data_v1_0,
-		.config_length	= ARRAY_SIZE(mxt1386e_config_data_v1_0),
-		.family_id	= 0xA0,
-		.variant_id	= 0x2,
-		.version	= 0x10,
-		.build		= 0xAA,
-		.bootldr_id	= MXT_BOOTLOADER_ID_1386E,
-		.fw_name	= "atmel_8960_liquid_v2_2_AA.hex",
-	},
-	{
-		.config		= mxt1386e_config_data_v2_1,
-		.config_length	= ARRAY_SIZE(mxt1386e_config_data_v2_1),
-		.family_id	= 0xA0,
-		.variant_id	= 0x7,
-		.version	= 0x21,
-		.build		= 0xAA,
-		.bootldr_id	= MXT_BOOTLOADER_ID_1386E,
-		.fw_name	= "atmel_8960_liquid_v2_2_AA.hex",
-	},
-	{
-		/* The config data for V2.2.AA is the same as for V2.1.AA */
-		.config		= mxt1386e_config_data_v2_1,
-		.config_length	= ARRAY_SIZE(mxt1386e_config_data_v2_1),
-		.family_id	= 0xA0,
-		.variant_id	= 0x7,
-		.version	= 0x22,
-		.build		= 0xAA,
-		.bootldr_id	= MXT_BOOTLOADER_ID_1386E,
-	},
-};
-
-static struct mxt_platform_data mxt_platform_data_2d = {
-	.config_array		= mxt_config_array_2d,
-	.config_array_size	= ARRAY_SIZE(mxt_config_array_2d),
-	.panel_minx		= 0,
-	.panel_maxx		= 1365,
-	.panel_miny		= 0,
-	.panel_maxy		= 767,
-	.disp_minx		= 0,
-	.disp_maxx		= 1365,
-	.disp_miny		= 0,
-	.disp_maxy		= 767,
-	.irqflags		= IRQF_TRIGGER_FALLING,
-	.i2c_pull_up		= true,
-	.reset_gpio		= MXT_TS_RESET_GPIO,
-	.irq_gpio		= MXT_TS_GPIO_IRQ,
-};
-
-static struct mxt_config_info mxt_config_array_3d[] = {
-	{
-		.config		= mxt1386e_config_data_3d,
-		.config_length	= ARRAY_SIZE(mxt1386e_config_data_3d),
-		.family_id	= 0xA0,
-		.variant_id	= 0x7,
-		.version	= 0x21,
-		.build		= 0xAA,
-	},
-};
-
-static struct mxt_platform_data mxt_platform_data_3d = {
-	.config_array		= mxt_config_array_3d,
-	.config_array_size	= ARRAY_SIZE(mxt_config_array_3d),
-	.panel_minx		= 0,
-	.panel_maxx		= 1919,
-	.panel_miny		= 0,
-	.panel_maxy		= 1199,
-	.disp_minx		= 0,
-	.disp_maxx		= 1919,
-	.disp_miny		= 0,
-	.disp_maxy		= 1199,
+static struct mxt_platform_data mxt_platform_data = {
+	.config			= mxt_config_data,
+	.config_length		= ARRAY_SIZE(mxt_config_data),
+	.x_size			= 1365,
+	.y_size			= 767,
 	.irqflags		= IRQF_TRIGGER_FALLING,
 	.i2c_pull_up		= true,
 	.reset_gpio		= MXT_TS_RESET_GPIO,
@@ -2273,6 +1937,7 @@ static struct mxt_platform_data mxt_platform_data_3d = {
 static struct i2c_board_info mxt_device_info[] __initdata = {
 	{
 		I2C_BOARD_INFO("atmel_mxt_ts", 0x5b),
+		.platform_data = &mxt_platform_data,
 		.irq = MSM_GPIO_TO_INT(MXT_TS_GPIO_IRQ),
 	},
 };
@@ -2486,6 +2151,7 @@ static struct platform_device *common_devices[] __initdata = {
 	&msm_device_vidc,
 	&msm_device_bam_dmux,
 	&msm_fm_platform_init,
+
 #if defined(CONFIG_TSIF) || defined(CONFIG_TSIF_MODULE)
 #ifdef CONFIG_MSM_USE_TSIF1
 	&msm_device_tsif[1],
@@ -2493,7 +2159,7 @@ static struct platform_device *common_devices[] __initdata = {
 	&msm_device_tsif[0],
 #endif
 #endif
-	&msm_device_tspp,
+
 #ifdef CONFIG_HW_RANDOM_MSM
 	&msm_device_rng,
 #endif
@@ -2851,8 +2517,8 @@ static struct isl_platform_data isl_data __initdata = {
 	.chg_detection_config	= NULL,	/* Not required when notify-by-pmic */
 	.max_system_voltage	= 4200,
 	.min_system_voltage	= 3200,
-	.chgcurrent		= 1900,
-	.term_current		= 0,
+	.chgcurrent		= 1000, /* 1900, */
+	.term_current		= 400,	/* Need fine tuning */
 	.input_current		= 2048,
 };
 
@@ -2943,15 +2609,6 @@ static void __init register_i2c_devices(void)
 		mach_mask = I2C_FFA;
 	else
 		pr_err("unmatched machine ID in register_i2c_devices\n");
-
-	if (machine_is_msm8960_liquid()) {
-		if (SOCINFO_VERSION_MAJOR(socinfo_get_platform_version()) == 3)
-			mxt_device_info[0].platform_data =
-						&mxt_platform_data_3d;
-		else
-			mxt_device_info[0].platform_data =
-						&mxt_platform_data_2d;
-	}
 
 	/* Run the array and install devices as appropriate */
 	for (i = 0; i < ARRAY_SIZE(msm8960_i2c_devices); ++i) {

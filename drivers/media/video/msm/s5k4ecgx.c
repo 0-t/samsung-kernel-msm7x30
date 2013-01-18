@@ -25,7 +25,7 @@
 #include <media/msm_camera.h>
 #include <mach/gpio.h>
 
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+#if defined(CONFIG_MACH_ANCORA)
 #include "s5k4ecgx.h"
 #elif defined(CONFIG_MACH_APACHE)
 #include "s5k4ecgx_I847.h"
@@ -54,7 +54,7 @@
     s5k4ecgx_sensor_write_list(A,(sizeof(A) / sizeof(A[0])),#A);
 #endif
 
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_APACHE) || defined(CONFIG_MACH_ANCORA_TMO)
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_APACHE)
 #define CAM_FLASH_ENSET 57
 #define CAM_FLASH_FLEN 56
 #else
@@ -63,7 +63,7 @@
 #endif
 #define FULL_FLASH 20
 #define PRE_FLASH 7
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_APACHE) || defined(CONFIG_MACH_ANCORA_TMO)
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_APACHE)
 #define MOVIE_FLASH 3 // 109 mA
 #else
 #define MOVIE_FLASH 7
@@ -1454,7 +1454,7 @@ int s5k4ecgx_set_af(char value)
                     if(s5k4ecgx_status.current_lux > 0x0032)break;
                 }
                 s5k4ecgx_sensor_write(0x0028, 0x7000);
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+#if defined(CONFIG_MACH_ANCORA)
                 s5k4ecgx_sensor_write(0x002A, 0x057C);
 #elif defined(CONFIG_MACH_APACHE)
                 s5k4ecgx_sensor_write(0x002A, 0x0588);
@@ -1476,7 +1476,7 @@ int s5k4ecgx_set_af(char value)
             if(pre_flash_on && flashOnFromApps==0)
             {
                 s5k4ecgx_sensor_write(0x0028, 0x7000);
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+#if defined(CONFIG_MACH_ANCORA)
                 s5k4ecgx_sensor_write(0x002A, 0x057C);
 #elif defined(CONFIG_MACH_APACHE)
                 s5k4ecgx_sensor_write(0x002A, 0x0588);
@@ -2318,7 +2318,7 @@ void s5k4ecgx_set_power(int status)
 
     if(status == 1) //POWER ON
     {
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+#if defined(CONFIG_MACH_ANCORA)
         printk("[S5K4ECGX]Camera Sensor Power ON \n");
 
         b_esd_detected=false;
@@ -2458,7 +2458,7 @@ void s5k4ecgx_set_power(int status)
     }
     else //POWER OFF
     {
-#ifdef CONFIG_MACH_ANCORA || CONFIG_MACH_ANCORA_TMO
+#ifdef CONFIG_MACH_ANCORA
         printk("[S5K4ECGX]Camera Sensor AF init!\n");    //     remove tick noise.
         S5K4ECGX_WRITE_LIST(s5k4ecgx_Preview_Return);    // for AF
         s5k4ecgx_set_af(EXT_CFG_AF_SET_NORMAL);
@@ -2601,7 +2601,7 @@ static int s5k4ecgx_probe_init_sensor()
     int rc = 0;
     printk("[S5K4ECGX]s5k4ecgx_probe_init_sensor()\n");
     
-#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+#if defined(CONFIG_MACH_ANCORA)
     /* CAM RESET(GPIO 0) set to HIGH */
     gpio_set_value(175, 1);        // standby
     msleep(15);
@@ -2792,7 +2792,7 @@ void s5k4ecgx_regs_table_init(void)
 
 #if defined(CONFIG_MACH_APACHE)
     filp = filp_open("/data/s5k4ecgx_I847.h", O_RDONLY, 0);
-#elif defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+#elif defined(CONFIG_MACH_ANCORA)
     if(s5k4ecgx_status.id == 0x0011)
         filp = filp_open("/mnt/sdcard/s5k4ecgx.h", O_RDONLY, 0);
     else

@@ -295,10 +295,9 @@ struct msmsdcc_curr_req {
 	unsigned int		xfer_remain;	/* Bytes remaining to send */
 	unsigned int		data_xfered;	/* Bytes acked by BLKEND irq */
 	int			got_dataend;
-	bool			wait_for_auto_prog_done;
-	bool			got_auto_prog_done;
+	int			wait_for_auto_prog_done;
+	int			got_auto_prog_done;
 	int			user_pages;
-	u32			req_tout_ms;
 };
 
 struct msmsdcc_sps_ep_conn_data {
@@ -352,7 +351,7 @@ struct msmsdcc_host {
 	struct clk		*clk;		/* main MMC bus clock */
 	struct clk		*pclk;		/* SDCC peripheral bus clock */
 	struct clk		*dfab_pclk;	/* Daytona Fabric SDCC clock */
-	atomic_t		clks_on;	/* set if clocks are enabled */
+	unsigned int		clks_on;	/* set if clocks are enabled */
 
 	unsigned int		eject;		/* eject state */
 
@@ -410,7 +409,7 @@ struct msmsdcc_host {
 	bool sdcc_suspended;
 	bool sdio_wakeupirq_disabled;
 	bool pending_resume;
-	unsigned int idle_tout_ms;			/* Timeout in msecs */
+	unsigned int idle_tout_ms;		/* Timeout in msecs */
 	struct msmsdcc_msm_bus_vote msm_bus_vote;
 	struct device_attribute	max_bus_bw;
 	struct device_attribute	polling;

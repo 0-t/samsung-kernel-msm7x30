@@ -104,7 +104,7 @@ static DEVICE_ATTR(aclset_file_cmd,0664, aclset_file_cmd_show, aclset_file_cmd_s
 static DEVICE_ATTR(gammaset_file_cmd,0664, gammaset_file_cmd_show, gammaset_file_cmd_store);
 #endif
 
-static struct setting_table *p22Gamma_set[] = {
+static const unsigned short *p22Gamma_set[] = {
     NULL,// display off
     s6e63m0_22gamma_30cd,// 1
     s6e63m0_22gamma_40cd,
@@ -132,7 +132,7 @@ static struct setting_table *p22Gamma_set[] = {
     s6e63m0_22gamma_300cd,// 24
 };
 
-struct setting_table *p19Gamma_set[] = {
+const unsigned short *p19Gamma_set[] = {
     NULL,// display off
 	s6e63m0_19gamma_30cd,// 1
 	s6e63m0_19gamma_40cd,
@@ -162,7 +162,7 @@ struct setting_table *p19Gamma_set[] = {
 
 #if defined(CONFIG_MACH_APACHE)
 
-struct setting_table *p22Gamma_set_new_hw[] = {
+static const unsigned short *p22Gamma_set_new_hw[] = {
     NULL,// display off
     s6e63m0_22gamma_30cd_new_hw,// 1
     s6e63m0_22gamma_40cd_new_hw,
@@ -190,7 +190,7 @@ struct setting_table *p22Gamma_set_new_hw[] = {
     s6e63m0_22gamma_300cd_new_hw,// 24
 };
 
-struct setting_table *p19Gamma_set_new_hw[] = {
+const unsigned short *p19Gamma_set_new_hw[] = {
     NULL,// display off
 	s6e63m0_19gamma_30cd_new_hw,// 1
 	s6e63m0_19gamma_40cd_new_hw,
@@ -220,7 +220,7 @@ struct setting_table *p19Gamma_set_new_hw[] = {
 
 #endif
 #ifdef CONFIG_USES_ACL
-static struct setting_table *ACL_cutoff_set[] = {
+static const unsigned short *ACL_cutoff_set[] = {
     acl_cutoff_off, //0
     acl_cutoff_8p,
     acl_cutoff_14p,
@@ -549,6 +549,7 @@ static void lcdc_s6e63m0_disp_powerdown(void)
 
 static void lcdc_s6e63m0_disp_on(void)
 {
+    int i;
     DPRINT("start %s\n", __func__);
 
     if (s6e63m0_state.disp_powered_up && !s6e63m0_state.display_on) {
@@ -628,9 +629,9 @@ static ssize_t s6e63m0_store_power(struct device *dev, struct device_attribute *
     DPRINT("s6e63m0_store_power is called: %d", power);
 
     if (power == 1)
-        lcdc_s6e63m0_panel_on(to_platform_device(dev));
+        lcdc_s6e63m0_panel_on(dev);
     else if(power == 0)
-        lcdc_s6e63m0_panel_off(to_platform_device(dev));
+        lcdc_s6e63m0_panel_off(dev);
     else if(power == 2){
         lcdc_s6e63m0_write(disp_on_sequence);
 #if defined(CONFIG_MACH_APACHE)
@@ -662,6 +663,7 @@ static ssize_t s6e63m0_show_lcd_type(struct device *dev, struct device_attribute
 #ifdef CONFIG_USES_ACL
 static void lcdc_s6e63m0_set_acl_parameter(int gamma)
 {
+    int i;
     DPRINT("lcdc_s6e63m0_set_acl_parameter (gamma:%d)\n",gamma);
 #if 0  
     /* dimming of display off (ACL off)*/
@@ -763,7 +765,7 @@ static ssize_t aclset_file_cmd_show(struct device *dev, struct device_attribute 
 
 static ssize_t aclset_file_cmd_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
 {
-    int value;
+    int value, i, gamma;
     sscanf(buf, "%d", &value);
     DPRINT("in aclset_file_cmd_store, input value = %d \n", value);
 

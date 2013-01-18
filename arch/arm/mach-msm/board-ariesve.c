@@ -143,18 +143,7 @@ EXPORT_SYMBOL(sec_class);
 struct device *switch_dev;
 EXPORT_SYMBOL(switch_dev);
 
-#ifdef CONFIG_ARIESVE_BIGMEM
-#define MSM_PMEM_SF_SIZE	0x1700000//0X0A00000
-#elif CONFIG_ARIESVE_MAXMEM
-#define MSM_PMEM_SF_SIZE	0X0800000//0X0800000//0x1A0000
-#elif CONFIG_ARIESVE_NORMALMEM
 #define MSM_PMEM_SF_SIZE	0x1700000
-#elif CONFIG_ARIESVE_ULTRAMEM
-#define MSM_PMEM_SF_SIZE	0X0800000//0X0800000//0x1A00000
-#elif CONFIG_ARIESVE_EXTREMEMEM
-#define MSM_PMEM_SF_SIZE	0x0000000//0X0800000//0x1A00000
-#endif
-
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_PRIM_BUF_SIZE	(800 * 480 * 4 * 3) /* 4bpp * 3 Pages */
 #else
@@ -174,32 +163,15 @@ EXPORT_SYMBOL(switch_dev);
 #define MSM_FB_OVERLAY0_WRITEBACK_SIZE	0
 #endif
 
-#ifdef CONFIG_ARIESVE_BIGMEM
-#define MSM_PMEM_ADSP_SIZE		0X1D00000//0X1500000
-#define MSM_FLUID_PMEM_ADSP_SIZE	0X1D00000
-#elif CONFIG_ARIESVE_MAXMEM
-#define MSM_PMEM_ADSP_SIZE		0X1100000//0X1500000
-#define MSM_FLUID_PMEM_ADSP_SIZE	0X1100000
-#elif CONFIG_ARIESVE_NORMALMEM
+#define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE + MSM_FB_EXT_BUF_SIZE, 4096)
+
 #define MSM_PMEM_ADSP_SIZE		0x1E00000
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
-#elif CONFIG_ARIESVE_ULTRAMEM
-#define MSM_PMEM_ADSP_SIZE		0xA00000//0X1000000//0x2D00000
-#define MSM_FLUID_PMEM_ADSP_SIZE	0xA00000//0X1000000//0x2800000
-#elif CONFIG_ARIESVE_EXTREMEMEM
-#define MSM_PMEM_ADSP_SIZE		0x0000000//0X1000000//0x2D00000
-#define MSM_FLUID_PMEM_ADSP_SIZE	0x0000000//0X1000000//0x2800000
-#endif
-
 #define PMEM_KERNEL_EBI0_SIZE		0x600000
 #define MSM_PMEM_AUDIO_SIZE		0x200000
 
 #define PMIC_GPIO_INT		27
-
-#define PMIC_VREG_WLAN_LEVEL	2100
-#define PMIC_GPIO_MICBIAS_EN	14 // PM8058_GPIO(15) 
-#define PMIC_GPIO_EARPATH_SEL	13 // PM8058_GPIO(14) 
-
+#define PMIC_VREG_WLAN_LEVEL	2900
 #define PMIC_GPIO_SD_DET	36
 #define PMIC_GPIO_SDC4_EN_N	17  /* PMIC GPIO Number 18 */
 #define PMIC_GPIO_HDMI_5V_EN_V3 32  /* PMIC GPIO for V3 H/W */
@@ -4048,30 +4020,37 @@ static struct msm_gpio lcdc_gpio_config_data[] = {
 	{ GPIO_CFG(129, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcd_reset" },
 };
 
-/* GPIO TLMM: Status */
-#define GPIO_ENABLE	0
-#define GPIO_DISABLE	1
-
-static void config_lcdc_gpio_table(uint32_t *table, int len, unsigned enable)
-{
-	int n, rc;
-
-
-	for (n = 0; n < len; n++) {
-		rc = gpio_tlmm_config(table[n],
-			enable ? GPIO_ENABLE : GPIO_DISABLE);
-		if (rc) {
-			printk(KERN_ERR "%s: gpio_tlmm_config(%#x)=%d\n",
-				__func__, table[n], rc);
-			break;
-		}
-	}
-}
+/* sleep */
+static struct msm_gpio lcdc_gpio_sleep_config_data[] = {
+	{GPIO_CFG(45, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "spi_clk"},
+	{GPIO_CFG(46, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "spi_cs0"},
+	{GPIO_CFG(47, 0, GPIO_CFG_OUTPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "spi_mosi"},
+	{GPIO_CFG(129, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA), "lcd_reset"},
+};
 
 static void lcdc_config_gpios(int enable)
 {
-	config_lcdc_gpio_table(lcdc_gpio_config_data,
-		ARRAY_SIZE(lcdc_gpio_config_data), enable);
+	struct msm_gpio *lcdc_gpio_cfg_data;
+	struct msm_gpio *lcdc_gpio_sleep_cfg_data;
+	int array_size;
+	int sleep_cfg_arry_size;
+
+	lcdc_gpio_cfg_data = lcdc_gpio_config_data;
+	lcdc_gpio_sleep_cfg_data = lcdc_gpio_sleep_config_data;
+	array_size = ARRAY_SIZE(lcdc_gpio_config_data);
+	sleep_cfg_arry_size = ARRAY_SIZE(lcdc_gpio_sleep_config_data);
+
+ 	if (enable) {
+		msm_gpios_request_enable(lcdc_gpio_cfg_data, array_size);
+	} else {
+		if (lcdc_gpio_sleep_cfg_data) {
+			msm_gpios_enable(lcdc_gpio_sleep_cfg_data, array_size);
+			msm_gpios_free(lcdc_gpio_sleep_cfg_data, array_size);
+		} else {
+			msm_gpios_disable_free(lcdc_gpio_config_data,
+					       array_size);
+		}
+	}
 }
 #endif
 
@@ -4288,39 +4267,24 @@ static struct platform_device qcedev_device = {
 static unsigned char quickvx_mddi_client = 1;
 
 static struct regulator *mddi_ldo17;
-static struct regulator *mddi_lcd;
+static struct regulator *mddi_ldo15;
 
 static int display_common_init(void)
 {
-	struct regulator_bulk_data regs[2] = {
-		{ .supply = "ldo17", .min_uV = 1800000, .max_uV = 1800000},
-		{ .supply = "ldo15", .min_uV = 3000000, .max_uV = 3000000},
-	};
-
 	int rc = 0;
 
-	rc = regulator_bulk_get(NULL, ARRAY_SIZE(regs), regs);
-	if (rc) {
+	mddi_ldo17 = regulator_get(NULL, "ldo17");
+	if (IS_ERR(mddi_ldo17)) {
 		pr_err("%s: regulator_bulk_get failed: %d\n",
-			__func__, rc);
-		goto bail;
+				__func__, rc);
 	}
 
-	rc = regulator_bulk_set_voltage(ARRAY_SIZE(regs), regs);
-	if (rc) {
-		pr_err("%s: regulator_bulk_set_voltage failed: %d\n",
-			__func__, rc);
-		goto put_regs;
+	mddi_ldo15 = regulator_get(NULL, "ldo15");
+	if (IS_ERR(mddi_ldo15)) {
+		pr_err("%s: regulator_bulk_get failed: %d\n",
+				__func__, rc);
 	}
 
-	mddi_ldo17 = regs[0].consumer;
-	mddi_lcd   = regs[1].consumer;	/* ldo15 */
-
-	return rc;
-
-put_regs:
-	regulator_bulk_free(ARRAY_SIZE(regs), regs);
-bail:
 	return rc;
 }
 
@@ -4338,38 +4302,40 @@ static int display_common_power(int on)
 	if (unlikely(!display_regs_initialized)) {
 		rc = display_common_init();
 		if (rc) {
-			pr_err("%s: regulator init failed: %d\n", __func__, rc);
+			pr_err("%s: regulator init failed: %d\n",
+					__func__, rc);
 			return rc;
 		}
 		display_regs_initialized = true;
 	}
 
+
 	if (on) {
 		rc = regulator_enable(mddi_ldo17);
 		if (rc) {
-			pr_err("%s: LDO17 regulator enable failed (%d)\n",
-				__func__, rc);
+			pr_err("%s: LDO20 regulator enable failed (%d)\n",
+			       __func__, rc);
 			return rc;
 		}
 
-		rc = regulator_enable(mddi_lcd);
+		rc = regulator_enable(mddi_ldo15);
 		if (rc) {
 			pr_err("%s: LCD regulator enable failed (%d)\n",
 				__func__, rc);
 			return rc;
 		}
 
-		mdelay(5);	/* ensure power is stable */
+		mdelay(5);		/* ensure power is stable */
 
 	} else {
 		rc = regulator_disable(mddi_ldo17);
 		if (rc) {
-			pr_err("%s: LDO17 regulator disable failed (%d)\n",
-				__func__, rc);
+			pr_err("%s: LDO20 regulator disable failed (%d)\n",
+			       __func__, rc);
 			return rc;
 		}
 
-		rc = regulator_disable(mddi_lcd);
+		rc = regulator_disable(mddi_ldo15);
 		if (rc) {
 			pr_err("%s: LCD regulator disable failed (%d)\n",
 				__func__, rc);
@@ -4388,9 +4354,8 @@ static int msm_fb_mddi_sel_clk(u32 *clk_rate)
 
 static int msm_fb_mddi_client_power(u32 client_id)
 {
-	struct regulator *mddi_ldo20;
+	struct regulator *vreg_ldo20;
 	int rc;
-
 	printk(KERN_NOTICE "\n client_id = 0x%x", client_id);
 	/* Check if it is Quicklogic client */
 	if (client_id == 0xc5835800) {
@@ -4402,21 +4367,18 @@ static int msm_fb_mddi_client_power(u32 client_id)
 		gpio_set_value_cansleep(PM8058_GPIO_PM_TO_SYS(
 			PMIC_GPIO_QUICKVX_CLK), 0);
 
-		mddi_ldo20 = regulator_get(NULL, "gp13");
+		vreg_ldo20 = regulator_get(NULL, "gp13");
 
-		if (IS_ERR(mddi_ldo20)) {
-			rc = PTR_ERR(mddi_ldo20);
-			pr_err("%s: could not get ldo20: %d\n", __func__, rc);
+		if (IS_ERR(vreg_ldo20)) {
+			rc = PTR_ERR(vreg_ldo20);
+			pr_err("%s: gp13 vreg get failed (%d)\n",
+				   __func__, rc);
 			return rc;
 		}
-		rc = regulator_set_voltage(mddi_ldo20, 1500000, 1500000);
+		rc = regulator_enable(vreg_ldo20);
 		if (rc) {
-			pr_err("%s: could not set ldo20 voltage: %d\n", __func__, rc);
-			return rc;
-		}
-		rc = regulator_enable(mddi_ldo20);
-		if (rc) {
-			pr_err("%s: could not enable ldo20: %d\n", __func__, rc);
+			pr_err("%s: LDO20 vreg enable failed (%d)\n",
+			       __func__, rc);
 			return rc;
 		}
 	}
@@ -4515,7 +4477,7 @@ static int lcdc_panel_power(int on)
 	int flag_on = !!on;
 	static int lcdc_power_save_on;
 
-	return 0;
+	return 0;	
 
 	if (lcdc_power_save_on == flag_on)
 		return 0;
@@ -6211,7 +6173,7 @@ static int msm_sdcc_get_wpswitch(struct device *dv)
 	defined(CONFIG_CSDIO_DEVICE_ID) && \
 	(CONFIG_CSDIO_VENDOR_ID == 0x70 && CONFIG_CSDIO_DEVICE_ID == 0x1117)
 static struct mmc_platform_data msm7x30_sdc1_data = {
-	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_26_27 | MMC_VDD_27_28,
+	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_27_28 | MMC_VDD_28_29,
 	.translate_vdd	= msm_sdcc_setup_power_mbp,
 	.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
 	.status	        = mbp_status,
@@ -6223,7 +6185,7 @@ static struct mmc_platform_data msm7x30_sdc1_data = {
 };
 #else
 static struct mmc_platform_data msm7x30_sdc1_data = {
-	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_20_21,
+	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_27_28 | MMC_VDD_28_29,
 	.translate_vdd	= msm_sdcc_setup_power,
 	.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
 	.status	        = wlan_status,
@@ -6238,7 +6200,7 @@ static struct mmc_platform_data msm7x30_sdc1_data = {
 
 #ifdef CONFIG_MMC_MSM_SDC2_SUPPORT
 static struct mmc_platform_data msm7x30_sdc2_data = {
-	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_26_27 | MMC_VDD_27_28,
+	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_27_28,
 	.translate_vdd	= msm_sdcc_setup_power,
 #ifdef CONFIG_MMC_MSM_SDC2_8_BIT_SUPPORT
 	.mmc_bus_width  = MMC_CAP_8_BIT_DATA,
@@ -6254,7 +6216,7 @@ static struct mmc_platform_data msm7x30_sdc2_data = {
 
 #ifdef CONFIG_MMC_MSM_SDC3_SUPPORT
 static struct mmc_platform_data msm7x30_sdc3_data = {
-	.ocr_mask	= MMC_VDD_26_27 | MMC_VDD_27_28,
+	.ocr_mask	= MMC_VDD_27_28 | MMC_VDD_28_29,
 	.translate_vdd	= msm_sdcc_setup_power,
 	.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
 	.sdiowakeup_irq = MSM_GPIO_TO_INT(118),
@@ -6267,7 +6229,7 @@ static struct mmc_platform_data msm7x30_sdc3_data = {
 
 #ifdef CONFIG_MMC_MSM_SDC4_SUPPORT
 static struct mmc_platform_data msm7x30_sdc4_data = {
-	.ocr_mask	= MMC_VDD_26_27 | MMC_VDD_27_28,
+	.ocr_mask	= MMC_VDD_27_28 | MMC_VDD_28_29,
 	.translate_vdd	= msm_sdcc_setup_power,
 	.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
 #ifdef CONFIG_MMC_MSM_CARD_HW_DETECTION
@@ -6288,6 +6250,7 @@ static int msm_sdc1_lvlshft_enable(void)
 {
 	static struct regulator *ldo5;
 	int rc;
+
 	/* Enable LDO5, an input to the FET that powers slot 1 */
 
 	ldo5 = regulator_get(NULL, "ldo5");
@@ -6632,9 +6595,10 @@ out3:
 #endif
 #ifdef CONFIG_MMC_MSM_SDC4_SUPPORT
 	if (mmc_regulator_init(4, "gp10", 2850000))
-	    return;
-    msm7x30_sdc4_data.swfi_latency = msm7x30_power_collapse_latency(
-               MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT);
+		return;
+	msm7x30_sdc4_data.swfi_latency = msm7x30_power_collapse_latency(
+		MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT);
+
 	msm_add_sdcc(4, &msm7x30_sdc4_data);
 #endif
 
@@ -7578,4 +7542,81 @@ MACHINE_START(ARIESVE, "GT-I9001 Board")
 	.init_early = msm7x30_init_early,
 	.handle_irq = vic_handle_irq,
 	.fixup = msm7x30_fixup,
+MACHINE_END
+
+MACHINE_START(MSM7X30_SURF, "QCT MSM7X30 SURF")
+	.boot_params = PLAT_PHYS_OFFSET + 0x100,
+	.map_io = msm7x30_map_io,
+	.reserve = msm7x30_reserve,
+	.init_irq = msm7x30_init_irq,
+	.init_machine = msm7x30_init,
+	.timer = &msm_timer,
+	.init_early = msm7x30_init_early,
+	.handle_irq = vic_handle_irq,
+MACHINE_END
+
+MACHINE_START(MSM7X30_FFA, "QCT MSM7X30 FFA")
+	.boot_params = PLAT_PHYS_OFFSET + 0x100,
+	.map_io = msm7x30_map_io,
+	.reserve = msm7x30_reserve,
+	.init_irq = msm7x30_init_irq,
+	.init_machine = msm7x30_init,
+	.timer = &msm_timer,
+	.init_early = msm7x30_init_early,
+	.handle_irq = vic_handle_irq,
+MACHINE_END
+
+MACHINE_START(MSM7X30_FLUID, "QCT MSM7X30 FLUID")
+	.boot_params = PLAT_PHYS_OFFSET + 0x100,
+	.map_io = msm7x30_map_io,
+	.reserve = msm7x30_reserve,
+	.init_irq = msm7x30_init_irq,
+	.init_machine = msm7x30_init,
+	.timer = &msm_timer,
+	.init_early = msm7x30_init_early,
+	.handle_irq = vic_handle_irq,
+MACHINE_END
+
+MACHINE_START(MSM8X55_SURF, "QCT MSM8X55 SURF")
+	.boot_params = PHYS_OFFSET + 0x100,
+	.map_io = msm7x30_map_io,
+	.reserve = msm7x30_reserve,
+	.init_irq = msm7x30_init_irq,
+	.init_machine = msm7x30_init,
+	.timer = &msm_timer,
+	.init_early = msm7x30_init_early,
+	.handle_irq = vic_handle_irq,
+MACHINE_END
+
+MACHINE_START(MSM8X55_FFA, "QCT MSM8X55 FFA")
+	.boot_params = PHYS_OFFSET + 0x100,
+	.map_io = msm7x30_map_io,
+	.reserve = msm7x30_reserve,
+	.init_irq = msm7x30_init_irq,
+	.init_machine = msm7x30_init,
+	.timer = &msm_timer,
+	.init_early = msm7x30_init_early,
+	.handle_irq = vic_handle_irq,
+MACHINE_END
+
+MACHINE_START(MSM8X55_SVLTE_SURF, "QCT MSM8X55 SVLTE SURF")
+	.boot_params = PHYS_OFFSET + 0x100,
+	.map_io = msm7x30_map_io,
+	.reserve = msm7x30_reserve,
+	.init_irq = msm7x30_init_irq,
+	.init_machine = msm7x30_init,
+	.timer = &msm_timer,
+	.init_early = msm7x30_init_early,
+	.handle_irq = vic_handle_irq,
+MACHINE_END
+
+MACHINE_START(MSM8X55_SVLTE_FFA, "QCT MSM8X55 SVLTE FFA")
+	.boot_params = PHYS_OFFSET + 0x100,
+	.map_io = msm7x30_map_io,
+	.reserve = msm7x30_reserve,
+	.init_irq = msm7x30_init_irq,
+	.init_machine = msm7x30_init,
+	.timer = &msm_timer,
+	.init_early = msm7x30_init_early,
+	.handle_irq = vic_handle_irq,
 MACHINE_END

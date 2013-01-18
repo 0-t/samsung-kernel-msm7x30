@@ -59,7 +59,8 @@ struct msm_mmc_reg_data {
  */
 struct msm_mmc_slot_reg_data {
 	struct msm_mmc_reg_data *vdd_data; /* keeps VDD/VCC regulator info */
-	struct msm_mmc_reg_data *vdd_io_data; /* keeps VDD IO regulator info */
+	struct msm_mmc_reg_data *vccq_data; /* keeps VCCQ regulator info */
+	struct msm_mmc_reg_data *vddp_data; /* keeps VDD Pad regulator info */
 };
 
 struct msm_mmc_gpio {
@@ -147,7 +148,7 @@ struct mmc_platform_data {
 	unsigned int msmsdcc_fmax;
 	bool nonremovable;
 	bool pclk_src_dfab;
-	unsigned int mpm_sdiowakeup_int;
+	int (*cfg_mpm_sdiowakeup)(struct device *, unsigned);
 	unsigned int wpswitch_gpio;
 	unsigned char wpswitch_polarity;
 	struct msm_mmc_slot_reg_data *vreg_data;

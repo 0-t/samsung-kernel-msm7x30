@@ -323,7 +323,6 @@ struct hci_conn {
 	struct timer_list disc_timer;
 	struct timer_list idle_timer;
 	struct delayed_work	rssi_update_work;
-	struct timer_list encrypt_pause_timer;
 
 	struct work_struct work_add;
 	struct work_struct work_del;
@@ -589,7 +588,10 @@ static inline void hci_chan_hold(struct hci_chan *chan)
 }
 int hci_chan_put(struct hci_chan *chan);
 
-struct hci_chan *hci_chan_create(struct hci_chan *chan,
+struct hci_chan *hci_chan_accept(struct hci_conn *hcon,
+				struct hci_ext_fs *tx_fs,
+				struct hci_ext_fs *rx_fs);
+struct hci_chan *hci_chan_create(struct hci_conn *hcon,
 				struct hci_ext_fs *tx_fs,
 				struct hci_ext_fs *rx_fs);
 void hci_chan_modify(struct hci_chan *chan,
