@@ -25,9 +25,6 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
-#if defined(CONFIG_MACH_ARIESVE) || defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_GODART) || defined(CONFIG_MACH_ANCORA_TMO) || defined(CONFIG_MACH_APACHE)
-#include <linux/fsa9480.h>
-#else
 #include <linux/i2c/fsa9480.h>
 
 #endif
