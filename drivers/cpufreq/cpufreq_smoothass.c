@@ -120,7 +120,7 @@ static int cpufreq_governor_smoothass(struct cpufreq_policy *policy,
 static
 #endif
 struct cpufreq_governor cpufreq_gov_smoothass = {
-	.name = "smoothass",
+	.name = "SmoothAss",
 	.governor = cpufreq_governor_smoothass,
 	.max_transition_latency = 6000000,
 	.owner = THIS_MODULE,
@@ -595,7 +595,7 @@ static int __init cpufreq_smoothass_init(void)
 	}
 
 	/* Scale up is high priority */
-	up_wq = create_workqueue("ksmoothass_up");
+	up_wq = create_rt_workqueue("ksmoothass_up");
 	down_wq = create_workqueue("ksmoothass_down");
 
 	INIT_WORK(&freq_scale_work, cpufreq_smoothass_freq_change_time_work);
