@@ -27,7 +27,6 @@
 #include <linux/i2c.h>
 #include <linux/i2c/fsa9480.h>
 
-#endif
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
