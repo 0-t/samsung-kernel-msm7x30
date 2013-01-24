@@ -139,7 +139,7 @@
 
 #define GPIO_BT_RESET		146
 #define WLAN_EN_GPIO		144 //WLAN_BT_EN
-#define WLAN_RESET			127 //Reset
+#define WLAN_RESET		127 //Reset
 #define WLAN_HOST_WAKE		111
 
 struct class *sec_class;
@@ -4312,7 +4312,6 @@ static void config_lcdc_gpio_table(uint32_t *table, int len, unsigned enable)
 {
 	int n, rc;
 
-
 	for (n = 0; n < len; n++) {
 		rc = gpio_tlmm_config(table[n],
 			enable ? GPIO_ENABLE : GPIO_DISABLE);
@@ -4393,7 +4392,6 @@ static struct platform_device msm_fb_device = {
 };
 
 #ifdef CONFIG_MSM_V4L2_VIDEO_OVERLAY_DEVICE
-
 static struct platform_device msm_v4l2_video_overlay_device = {
 	.name   = "msm_v4l2_overlay_pd",
 	.id     = 0,
@@ -6460,7 +6458,7 @@ static struct mmc_platform_data msm7x30_sdc1_data = {
 };
 #else
 static struct mmc_platform_data msm7x30_sdc1_data = {
-	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_20_21,
+	.ocr_mask	= MMC_VDD_165_195 | MMC_VDD_27_28 | MMC_VDD_28_29,
 	.translate_vdd	= msm_sdcc_setup_power,
 	.mmc_bus_width  = MMC_CAP_4_BIT_DATA,
 	.status	        = wlan_status,
@@ -6871,9 +6869,10 @@ out3:
 #endif
 #ifdef CONFIG_MMC_MSM_SDC4_SUPPORT
 	if (mmc_regulator_init(4, "gp10", 2850000))
-	    return;
-    msm7x30_sdc4_data.swfi_latency = msm7x30_power_collapse_latency(
-               MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT);
+		return;
+	msm7x30_sdc4_data.swfi_latency = msm7x30_power_collapse_latency(
+		MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT);
+
 	msm_add_sdcc(4, &msm7x30_sdc4_data);
 #endif
 
