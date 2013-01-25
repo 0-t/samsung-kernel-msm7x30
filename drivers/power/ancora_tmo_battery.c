@@ -140,11 +140,7 @@ extern bool power_down;
 #define ONCRPC_CHG_GET_GENERAL_STATUS_PROC 	12
 #define ONCRPC_CHARGER_API_VERSIONS_PROC 	0xffffffff
 
-<<<<<<< HEAD
 #define BATT_RPC_TIMEOUT    20000 // 5000	/* 5 sec */
-=======
-#define BATT_RPC_TIMEOUT    5000	/* 5 sec */
->>>>>>> arco/jb-3.0
 
 #define INVALID_BATT_HANDLE    -1
 
@@ -593,11 +589,7 @@ static char *msm_power_supplied_to[] = {
 	"battery",
 };
 
-<<<<<<< HEAD
 #define BATT_CHECK_INTERVAL	(20 * TIME_UNIT_SECOND) // every 5 sec
-=======
-#define BATT_CHECK_INTERVAL	(5 * TIME_UNIT_SECOND) // every 5 sec
->>>>>>> arco/jb-3.0
 
 static unsigned int charging_start_time = 0;
 
@@ -1613,11 +1605,7 @@ static int msm_batt_check_level(int battery_level)
 	*/
 	if ( (msm_batt_info.batt_full_check == 0) && (battery_level == 100) )
 	{
-<<<<<<< HEAD
 		battery_level = 100;	// not yet fully charged
-=======
-		battery_level = 99;	// not yet fully charged
->>>>>>> arco/jb-3.0
 	}
 /*
 	else if ( (battery_level == 0)
@@ -3000,7 +2988,6 @@ static void msm_batt_cable_status_update(void)
 	{
 		if (charger_type == CHARGER_TYPE_USB_PC)
 		{
-<<<<<<< HEAD
         	#ifdef CONFIG_FORCE_FAST_CHARGE
 			if (force_fast_charge != 0) {
 				pr_info("cable USB forced fast charge");
@@ -3018,11 +3005,6 @@ static void msm_batt_cable_status_update(void)
 			hsusb_chg_connected_ext(USB_CHG_TYPE__SDP);
 			power_supply_changed(&msm_psy_usb);
             #endif
-=======
-			msm_batt_info.charging_source = USB_CHG;
-			hsusb_chg_connected_ext(USB_CHG_TYPE__SDP);
-			power_supply_changed(&msm_psy_usb);
->>>>>>> arco/jb-3.0
 		}
 		else	// TA and Wireless
 		{
