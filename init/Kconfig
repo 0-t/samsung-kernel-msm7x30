@@ -931,6 +931,15 @@ config CC_OPTIMIZE_FAST
 
 endchoice
 
+config CC_OPTIMIZE_O3
+	bool "Optimize with O3"
+	default n
+	help
+		Enabling this option will pass "-O3" instead of "-O2" to gcc
+		resulting a fast kernel.
+
+		If unsure, say N.
+
 config SYSCTL
 	bool
 
