@@ -124,7 +124,7 @@ static struct clk *acpuclk_sources[MAX_SOURCE];
  * Do NOT change the AXI frequency unless you are _absoulutely_ sure you
  * know all the h/w requirements.
  */ 
-#ifdef MSM_CPU_FREQ_EXTREME_UV
+#ifdef CONFIG_MSM_CPU_FREQ_EXTREME_UV
 static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 0, 24576,  SRC_LPXO, 0, 0,  30720000,  750, VDD_RAW(750) },
 	{ 0, 61440,  PLL_3,    5, 11, 61440000,  750, VDD_RAW(750) },
@@ -187,6 +187,7 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 #endif
 	{ 0 }
 };
+#endif
 
 #define MAX_CLK 1881600
 unsigned long acpuclk_usr_set_max(void)
