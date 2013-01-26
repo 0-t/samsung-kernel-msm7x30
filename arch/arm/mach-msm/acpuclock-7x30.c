@@ -126,11 +126,11 @@ static struct clk *acpuclk_sources[MAX_SOURCE];
  */ 
 #ifdef CONFIG_MSM_CPU_FREQ_EXTREME_UV
 static struct clkctl_acpu_speed acpu_freq_tbl[] = {
-	{ 0, 24576,  SRC_LPXO, 0, 0,  30720000,  750, VDD_RAW(750) },
+	{ 0, 24576,  LPXO, 0, 0,  30720000,  750, VDD_RAW(750) },
 	{ 0, 61440,  PLL_3,    5, 11, 61440000,  750, VDD_RAW(750) },
 	{ 1, 122880, PLL_3,    5, 5,  61440000,  750, VDD_RAW(750) },
 	{ 1, 184320, PLL_3,    5, 4,  61440000,  750, VDD_RAW(750) },
-	{ 1, MAX_AXI_KHZ, SRC_AXI, 1, 0, 61440000, 750, VDD_RAW(750) },
+	{ 1, MAX_AXI_KHZ, AXI, 1, 0, 61440000, 750, VDD_RAW(750) },
 	{ 1, 245760, PLL_3,    5, 2,  61440000,  750, VDD_RAW(750) },
 	{ 1, 368640, PLL_3,    5, 1,  122800000, 800, VDD_RAW(800) },
 	/* AXI has MSMC1 implications. See above. */
