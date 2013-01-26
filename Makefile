@@ -570,6 +570,7 @@ KBUILD_CFLAGS  += -O3 -fno-tree-vectorize
 else
 KBUILD_CFLAGS	+= -O2
 endif
+endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
 
