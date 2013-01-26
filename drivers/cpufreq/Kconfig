@@ -274,8 +274,6 @@ config CPU_FREQ_GOV_INTERACTIVEX
 	help
 	  'interactiveX' - Modified version of interactive with sleep+wake code.
 
-endif	# CPU_FREQ
-
 menu "x86 CPU frequency scaling drivers"
 depends on X86
 source "drivers/cpufreq/Kconfig.x86"
