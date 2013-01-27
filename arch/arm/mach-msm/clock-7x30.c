@@ -2314,7 +2314,7 @@ static DEFINE_CLK_PCOM(adsp_clk, ADSP_CLK, CLKFLAG_SKIP_AUTO_OFF);
 static DEFINE_CLK_PCOM(codec_ssbi_clk,	CODEC_SSBI_CLK, CLKFLAG_SKIP_AUTO_OFF);
 static DEFINE_CLK_PCOM(ebi1_clk, EBI1_CLK, CLKFLAG_SKIP_AUTO_OFF | CLKFLAG_MIN);
 
-#ifdef CONFIG_MACH_ARIESVE
+#ifdef CONFIG_MACH_ARIESVE || #ifdef CONFIG_MACH_ANCORA_TMO
 static struct pcom_clk pbus_clk = {
        .id = P_PBUS_CLK,
        .c = {
@@ -2420,7 +2420,7 @@ static DEFINE_CLK_PCOM(p_axi_rotator_clk, AXI_ROTATOR_CLK,
 static DEFINE_CLK_PCOM(p_rotator_imem_clk, ROTATOR_IMEM_CLK, 0);
 static DEFINE_CLK_PCOM(p_rotator_p_clk, ROTATOR_P_CLK, 0);
 
-#ifdef CONFIG_MACH_ARIESVE
+#ifdef CONFIG_MACH_ARIESVE || #ifdef CONFIG_MACH_ANCORA_TMO
 static DEFINE_CLK_VOTER(ebi_dtv_clk, &pbus_clk.c);
 static DEFINE_CLK_VOTER(ebi_grp_3d_clk, &pbus_clk.c);
 static DEFINE_CLK_VOTER(ebi_grp_2d_clk, &pbus_clk.c);
@@ -2785,7 +2785,7 @@ static struct clk_local_ownership {
 	{ CLK_LOOKUP("codec_ssbi_clk",	codec_ssbi_clk.c,	NULL) },
 	{ CLK_LOOKUP("ebi1_clk",	ebi1_clk.c,	NULL) },
 
-#ifdef CONFIG_MACH_ARIESVE
+#ifdef CONFIG_MACH_ARIESVE || #ifdef CONFIG_MACH_ANCORA_TMO
 	{ CLK_LOOKUP("pbus_clk",        pbus_clk.c,     NULL) },
 #else
 	{ CLK_LOOKUP("ebi1_fixed_clk",	ebi1_fixed_clk.c,	NULL) },
