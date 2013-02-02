@@ -495,13 +495,6 @@ struct msmfb_metadata {
 	} data;
 };
 
-struct msmfb_metadata {
-	uint32_t op;
-	uint32_t flags;
-	union {
-		struct mdp_blend_cfg blend_cfg;
-	} data;
-};
 struct mdp_page_protection {
 	uint32_t page_protection;
 };
