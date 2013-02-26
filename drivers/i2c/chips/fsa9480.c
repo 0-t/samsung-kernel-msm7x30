@@ -39,6 +39,10 @@
 #include <asm/io.h>
 #include <linux/uaccess.h>
 
+#ifdef CONFIG_FORCE_FAST_CHARGE
+#include <linux/fastchg.h>
+#endif
+
 // #define DEBUG 1
 #include <linux/device.h>
 
@@ -51,6 +55,10 @@ static int usb_state = 0;
 
 extern int android_usb_get_current_mode(void);
 extern void android_usb_switch(int mode);
+#ifdef CONFIG_USB_EHCI_MSM_72K
+#include <mach/msm72k_otg.h>
+extern void otg_set_mode(int host);
+#endif
 
 #include <linux/pm.h>
 #include <linux/mfd/pmic8058.h>
@@ -88,7 +96,6 @@ u8 MicroUSBStatus=0;
 static u8 MicroJigUSBOnStatus=0;
 static u8 MicroJigUSBOffStatus=0;
 bool MicroJigUARTOffStatus=0;
-int askonstatus;
 EXPORT_SYMBOL(MicroUSBStatus);
 EXPORT_SYMBOL(UsbIndicator);
 u8 FSA9480_Get_USB_Status(void)
@@ -189,43 +196,6 @@ static ssize_t usb_state_store(
 
 /*sysfs for usb cable's state.*/
 static DEVICE_ATTR(usb_state, 0664, usb_state_show, usb_state_store);
-
-#ifdef _SUPPORT_SAMSUNG_AUTOINSTALLER_
-static int kies_status = 0;
-static ssize_t KiesStatus_switch_show(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	if(kies_status == 1)
-		return sprintf(buf, "%s\n", "START");
-	else if( kies_status == 2)
-		return sprintf(buf, "%s\n", "STOP");
-	else
-		return sprintf(buf, "%s\n", "INIT");
-}
-
-static ssize_t KiesStatus_switch_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
-{
-	dmsg("buf=%s\n", buf);
-
-	if (strncmp(buf, "START", 5) == 0)
-	{
-		kies_status = 1;
-  	}
-	else if (strncmp(buf, "STOP", 4) == 0)
-	{
-		kies_status = 2;
-		UsbIndicator(2);
-	}
-	else if (strncmp(buf, "INIT", 4) == 0 )
-	{
-		kies_status = 0;
-	}
-
-	return size;
-}
-
-static DEVICE_ATTR(KiesStatus, S_IRUGO |S_IWUGO | S_IRUSR | S_IWUSR, KiesStatus_switch_show, KiesStatus_switch_store);
-#endif /* _SUPPORT_SAMSUNG_AUTOINSTALLER_ */
-
 
 struct switch_dev switch_dock_detection = {
 		.name = "dock",	
@@ -765,7 +735,7 @@ static DEVICE_ATTR(dock, S_IRUGO |S_IWUGO | S_IRUSR | S_IWUSR, dock_switch_show,
 
 void usb_switch_state(void)
 {
-                usb_switch_mode(SWITCH_MSM);
+    usb_switch_mode(SWITCH_MSM);
 }
 
 extern int set_tsp_for_ta_detect(int state);
@@ -786,6 +756,19 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 	
 	if (vdev1)
 	{
+#ifdef CONFIG_FORCE_FAST_CHARGE
+		if(
+			(vdev1 == CRA_USB) && 
+			(
+				(force_fast_charge && (!(attach & DETACH) || !curr_usb_status)) || 
+				(!force_fast_charge && (attach & DETACH) && curr_ta_status)
+			)
+		)
+		{
+			vdev1=CRA_DEDICATED_CHG;
+			DEBUG_FSA9480("USB --- FORCE FAST CHARGE\n");
+		}
+#endif
 		switch (vdev1)
 		{		
 			case CRA_AUDIO_TYPE1:
@@ -813,13 +796,12 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 					}
 					if(!charging_boot)
 					{
-					DEBUG_FSA9480("USB ---!charging_boot\n");
+					    DEBUG_FSA9480("USB ---!charging_boot\n");
 						usb_switch_state();
 					} 					
 					curr_usb_status = 1;                    
 					MicroUSBStatus=1;
-					if((!askonstatus))
-						UsbIndicator(1);
+					UsbIndicator(1);
 				}
 				else if(attach & DETACH){
 					DEBUG_FSA9480("USB --- DETACH\n");
@@ -903,7 +885,15 @@ static void fsa9480_process_device(u8 dev1, u8 dev2, u8 attach)
 #endif
 				break;                
 			case CRA_USB_OTG:
-				DEBUG_FSA9480("USB_OTG \n");                
+				DEBUG_FSA9480("USB_OTG \n"); 
+#ifdef CONFIG_USB_EHCI_MSM_72K
+				if(attach & ATTACH){
+	                otg_set_mode(1);    	                
+				}
+				else if(attach & DETACH){
+	                otg_set_mode(0);    
+                }
+#endif
 				break;                	
 			default:
 				break;

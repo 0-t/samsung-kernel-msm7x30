@@ -26,7 +26,6 @@
 #include <mach/dma.h>
 #include <mach/board.h>
 #include <asm/clkdev.h>
-
 #include "devices.h"
 #include "gpio_hw.h"
 #include "footswitch.h"
