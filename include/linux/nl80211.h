@@ -1277,8 +1277,6 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_TX_NO_CCK_RATE,
 
-	NL80211_ATTR_ROAM_SUPPORT,
-
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
