@@ -368,7 +368,8 @@ KBUILD_CFLAGS   := -Wall -Wundef -Wstrict-prototypes -Wno-trigraphs \
 		   -fno-strict-aliasing -fno-common \
 		   -Werror-implicit-function-declaration \
 		   -Wno-format-security \
-		   -fno-delete-null-pointer-checks		
+		   -fno-delete-null-pointer-checks \
+		   -march=armv7-a		
 KBUILD_AFLAGS_KERNEL :=
 KBUILD_CFLAGS_KERNEL :=
 KBUILD_AFLAGS   := -D__ASSEMBLY__
@@ -561,7 +562,11 @@ all: vmlinux
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os
 else
+ifdef CONFIG_CC_OPTIMIZE_O3
+KBUILD_CFLAGS  += -O3 -fno-tree-vectorize
+else
 KBUILD_CFLAGS	+= -O2
+endif
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
