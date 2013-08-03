@@ -39,7 +39,7 @@
 #define LCDC_BASE	0xE0000
 #endif
 
-#if defined(CONFIG_MACH_ANCORA)
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
 extern unsigned int board_lcd_hw_revision;
 #endif
 
