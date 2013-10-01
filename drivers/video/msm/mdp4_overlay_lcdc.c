@@ -332,6 +332,9 @@ void mdp4_lcdc_wait4vsync(int cndx)
 
 	mdp4_lcdc_vsync_irq_ctrl(cndx, 1);
 
+	/* start timing generator & mmu if they are not started yet */
+	mdp4_overlay_lcdc_start();
+
 	spin_lock_irqsave(&vctrl->spin_lock, flags);
 
 	if (vctrl->wait_vsync_cnt == 0)
@@ -676,7 +679,6 @@ int mdp4_lcdc_on(struct platform_device *pdev)
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
 
 	mdp_histogram_ctrl_all(TRUE);
-	mdp4_overlay_lcdc_start();
 
 	return ret;
 }
