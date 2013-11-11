@@ -35,9 +35,8 @@ struct kernel_cpustat {
 };
 
 struct kernel_stat {
-	struct cpu_usage_stat cpustat;
 #ifndef CONFIG_GENERIC_HARDIRQS
-	unsigned int irqs[NR_IRQS];
+       unsigned int irqs[NR_IRQS];
 #endif
 	unsigned long irqs_sum;
 	unsigned int softirqs[NR_SOFTIRQS];
