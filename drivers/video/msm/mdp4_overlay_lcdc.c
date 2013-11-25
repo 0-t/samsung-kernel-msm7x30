@@ -778,7 +778,26 @@ int mdp4_lcdc_off(struct platform_device *pdev)
 			mdp4_lcdc_wait4ov(0);
 	}
 
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+	if (board_lcd_hw_revision != 3)
+        	mdp_histogram_ctrl_all(FALSE);
+#else
 	mdp_histogram_ctrl_all(FALSE);
+#endif
+
+	MDP_OUTP(MDP_BASE + LCDC_BASE, 0);
+
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+	if (board_lcd_hw_revision == 3)
+	{
+		/* MDP clock disable */
+		mdp_clk_ctrl(0);
+		mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+
+		mdp_histogram_ctrl_all(FALSE);
+		ret = panel_next_off(pdev);
+	}
+#endif
 
 	lcdc_enabled = 0;
 
@@ -827,9 +846,18 @@ int mdp4_lcdc_off(struct platform_device *pdev)
 	mdp4_overlay_iommu_unmap_freelist(mixer);
 	mdp4_overlay_iommu_unmap_freelist(mixer);
 
+#if defined(CONFIG_MACH_ANCORA) || defined(CONFIG_MACH_ANCORA_TMO)
+	if (board_lcd_hw_revision != 3)
+	{
+		/* MDP clock disable */
+		mdp_clk_ctrl(0);
+		mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+	}
+#else
 	/* MDP clock disable */
 	mdp_clk_ctrl(0);
 	mdp_pipe_ctrl(MDP_OVERLAY0_BLOCK, MDP_BLOCK_POWER_OFF, FALSE);
+#endif
 
 	mutex_unlock(&mfd->dma->ov_mutex);
 
