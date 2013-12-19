@@ -899,7 +899,7 @@ static long vid_enc_ioctl(struct file *file,
 	{
 		struct venc_allocatorproperty allocatorproperty;
 		memset((void *)&allocatorproperty, 0,
-				sizeof(struct venc_allocatorproperty))
+				sizeof(struct venc_allocatorproperty));
 		if (copy_from_user(&venc_msg, arg, sizeof(venc_msg)))
 			return -EFAULT;
 
