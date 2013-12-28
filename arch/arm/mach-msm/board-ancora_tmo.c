@@ -160,7 +160,7 @@ EXPORT_SYMBOL(switch_dev);
 
 #define MSM_FB_SIZE roundup(MSM_FB_PRIM_BUF_SIZE, 4096)
 
-#define MSM_PMEM_ADSP_SIZE		0x1200000
+#define MSM_PMEM_ADSP_SIZE		0x1400000
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
 #define PMEM_KERNEL_EBI0_SIZE		0x0600000
 #define MSM_PMEM_AUDIO_SIZE		0x0200000
@@ -170,7 +170,7 @@ static struct platform_device ion_dev;
 #define MSM_ION_AUDIO_SIZE	MSM_PMEM_AUDIO_SIZE
 #define MSM_ION_SF_SIZE		MSM_PMEM_SF_SIZE
 #ifdef CONFIG_MSM_ADSP_USE_PMEM
-#define MSM_ION_VIDC_SIZE	0x1900000
+#define MSM_ION_VIDC_SIZE	0x1800000
 #endif
 #define MSM_ION_HEAP_NUM	4
 #endif
@@ -4694,6 +4694,11 @@ static struct msm_panel_common_pdata mdp_pdata = {
 	.gpio = 30,
 	.mdp_max_clk = 192000000,
 	.mdp_rev = MDP_REV_40,
+#ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
+        .mem_hid = BIT(ION_CP_MM_HEAP_ID),
+#else
+        .mem_hid = MEMTYPE_EBI0,
+#endif
 };
 
 static struct msm_gpio lcd_panel_on_gpios[] = {
