@@ -98,13 +98,9 @@ static struct pll pll2_tbl[] = {
 	{ 73, 0, 1, 0 }, /* 73 * 19,2MHz = 1401,6 MHz */
 #ifdef CONFIG_MSM_CPU_FREQ_OVERCLOCKING
  	{ 79, 1, 3, 0 }, /* 79 * 19,2MHz = 1516,8 MHz */
- 	{ 81, 1, 3, 0 }, /* 81 * 19,2MHz = 1555,2 MHz */
 	{ 84, 1, 3, 0 }, /* 84 * 19,2MHz = 1612,8 MHz */
-	{ 86, 1, 3, 0 }, /* 86 * 19,2MHz = 1651,2 MHz */
 	{ 89, 1, 3, 0 }, /* 89 * 19,2MHz = 1708,8 MHz */
-	{ 92, 1, 3, 0 }, /* 92 * 19,2MHz = 1766,4 MHz */
 	{ 94, 1, 3, 0 }, /* 94 * 19,2MHz = 1804,8 MHz */
-	{ 95, 1, 3, 0 }, /* 95 * 19,2MHz = 1824,0 MHz */
 #endif
 };
 
@@ -133,9 +129,9 @@ static struct clk *acpuclk_sources[MAX_SOURCE];
 static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 0, 24576,  LPXO, 0, 0,  30720000,  750, VDD_RAW(750) },
 	{ 0, 61440,  PLL_3,    5, 11, 61440000,  750, VDD_RAW(750) },
-	{ 0, 122880, PLL_3,    5, 5,  61440000,  750, VDD_RAW(750) },
+	{ 1, 122880, PLL_3,    5, 5,  61440000,  750, VDD_RAW(750) },
 	{ 0, 184320, PLL_3,    5, 4,  61440000,  750, VDD_RAW(750) },
-	{ 1, MAX_AXI_KHZ, AXI, 1, 0, 61440000, 750, VDD_RAW(750) },
+	{ 0, MAX_AXI_KHZ, AXI, 1, 0, 61440000, 750, VDD_RAW(750) },
 	{ 1, 245760, PLL_3,    5, 2,  61440000,  750, VDD_RAW(750) },
 	{ 1, 368640, PLL_3,    5, 1,  122800000, 800, VDD_RAW(800) },
 	/* AXI has MSMC1 implications. See above. */
@@ -152,13 +148,9 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 1, 1401600, PLL_2, 3, 0, UINT_MAX, 1100, VDD_RAW(1100), &pll2_tbl[6]},
 #ifdef CONFIG_MSM_CPU_FREQ_OVERCLOCKING
 	{ 1, 1516800, PLL_2, 3, 0, UINT_MAX, 1150, VDD_RAW(1150), &pll2_tbl[7]},
-	{ 1, 1555200, PLL_2, 3, 0, UINT_MAX, 1175, VDD_RAW(1175), &pll2_tbl[8]},
-	{ 1, 1612800, PLL_2, 3, 0, UINT_MAX, 1200, VDD_RAW(1200), &pll2_tbl[9]},
-	{ 1, 1651200, PLL_2, 3, 0, UINT_MAX, 1225, VDD_RAW(1225), &pll2_tbl[10]},
-	{ 1, 1708800, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[11]},
-	{ 1, 1766400, PLL_2, 3, 0, UINT_MAX, 1275, VDD_RAW(1275), &pll2_tbl[12]},
-	{ 1, 1804800, PLL_2, 3, 0, UINT_MAX, 1300, VDD_RAW(1300), &pll2_tbl[13]},
-	{ 1, 1824000, PLL_2, 3, 0, UINT_MAX, 1325, VDD_RAW(1325), &pll2_tbl[14]},
+	{ 1, 1612800, PLL_2, 3, 0, UINT_MAX, 1200, VDD_RAW(1200), &pll2_tbl[8]},
+	{ 1, 1708800, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[9]},
+	{ 1, 1804800, PLL_2, 3, 0, UINT_MAX, 1300, VDD_RAW(1300), &pll2_tbl[10]},
 #endif
 	{ 0 }
 };
@@ -168,9 +160,9 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 0, 24576,  LPXO, 0, 0,  30720000,  800, VDD_RAW(800) },
 	{ 0, 61440,  PLL_3,    5, 11, 61440000,  800, VDD_RAW(800) },
-	{ 0, 122880, PLL_3,    5, 5,  61440000,  800, VDD_RAW(800) },
+	{ 1, 122880, PLL_3,    5, 5,  61440000,  800, VDD_RAW(800) },
 	{ 0, 184320, PLL_3,    5, 4,  61440000,  800, VDD_RAW(800) },
-	{ 1, MAX_AXI_KHZ, AXI, 1, 0, 61440000, 800, VDD_RAW(800) },
+	{ 0, MAX_AXI_KHZ, AXI, 1, 0, 61440000, 800, VDD_RAW(800) },
 	{ 1, 245760, PLL_3,    5, 2,  61440000,  800, VDD_RAW(800) },
 	{ 1, 368640, PLL_3,    5, 1,  122800000, 850, VDD_RAW(850) },
 	/* AXI has MSMC1 implications. See above. */
@@ -180,20 +172,16 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	 */
 	{ 1, 806400,  PLL_2, 3, 0, UINT_MAX, 1025, VDD_RAW(1025), &pll2_tbl[0]},
 	{ 1, 902400,  PLL_2, 3, 0, UINT_MAX, 1050, VDD_RAW(1050), &pll2_tbl[1]},
-	{ 1, 1024000, PLL_2, 3, 0, UINT_MAX, 1100, VDD_RAW(1100), &pll2_tbl[1]},
-	{ 1, 1113600, PLL_2, 3, 0, UINT_MAX, 1125, VDD_RAW(1125), &pll2_tbl[2]},
-	{ 1, 1209600, PLL_2, 3, 0, UINT_MAX, 1150, VDD_RAW(1150), &pll2_tbl[3]},
-	{ 1, 1305600, PLL_2, 3, 0, UINT_MAX, 1175, VDD_RAW(1175), &pll2_tbl[4]},
-	{ 1, 1401600, PLL_2, 3, 0, UINT_MAX, 1200, VDD_RAW(1200), &pll2_tbl[5]},
+	{ 1, 1017600, PLL_2, 3, 0, UINT_MAX, 1100, VDD_RAW(1100), &pll2_tbl[2]},
+	{ 1, 1113600, PLL_2, 3, 0, UINT_MAX, 1125, VDD_RAW(1125), &pll2_tbl[3]},
+	{ 1, 1209600, PLL_2, 3, 0, UINT_MAX, 1150, VDD_RAW(1150), &pll2_tbl[4]},
+	{ 1, 1305600, PLL_2, 3, 0, UINT_MAX, 1175, VDD_RAW(1175), &pll2_tbl[5]},
+	{ 1, 1401600, PLL_2, 3, 0, UINT_MAX, 1200, VDD_RAW(1200), &pll2_tbl[6]},
 #ifdef CONFIG_MSM_CPU_FREQ_OVERCLOCKING
-	{ 1, 1516800, PLL_2, 3, 0, UINT_MAX, 1225, VDD_RAW(1225), &pll2_tbl[6]},
-	{ 1, 1555200, PLL_2, 3, 0, UINT_MAX, 1225, VDD_RAW(1225), &pll2_tbl[8]},
-	{ 1, 1612800, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[9]},
-	{ 1, 1651200, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[10]},
-	{ 1, 1708800, PLL_2, 3, 0, UINT_MAX, 1275, VDD_RAW(1275), &pll2_tbl[11]},
-	{ 1, 1766400, PLL_2, 3, 0, UINT_MAX, 1300, VDD_RAW(1300), &pll2_tbl[12]},
-	{ 1, 1804800, PLL_2, 3, 0, UINT_MAX, 1325, VDD_RAW(1325), &pll2_tbl[13]},
-	{ 1, 1824000, PLL_2, 3, 0, UINT_MAX, 1350, VDD_RAW(1350), &pll2_tbl[14]},
+	{ 1, 1516800, PLL_2, 3, 0, UINT_MAX, 1225, VDD_RAW(1225), &pll2_tbl[7]},
+	{ 1, 1612800, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[8]},
+	{ 1, 1708800, PLL_2, 3, 0, UINT_MAX, 1275, VDD_RAW(1275), &pll2_tbl[9]},
+	{ 1, 1804800, PLL_2, 3, 0, UINT_MAX, 1325, VDD_RAW(1325), &pll2_tbl[10]},
 #endif
 	{ 0 }
 };
@@ -222,13 +210,9 @@ static struct clkctl_acpu_speed acpu_freq_tbl[] = {
 	{ 1, 1401600, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[6]},
 #ifdef CONFIG_MSM_CPU_FREQ_OVERCLOCKING
 	{ 1, 1516800, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[7]},
-	{ 1, 1555200, PLL_2, 3, 0, UINT_MAX, 1250, VDD_RAW(1250), &pll2_tbl[8]},
-	{ 1, 1612800, PLL_2, 3, 0, UINT_MAX, 1275, VDD_RAW(1275), &pll2_tbl[9]},
-	{ 1, 1651200, PLL_2, 3, 0, UINT_MAX, 1275, VDD_RAW(1275), &pll2_tbl[10]},
-	{ 1, 1708800, PLL_2, 3, 0, UINT_MAX, 1300, VDD_RAW(1300), &pll2_tbl[11]},
-	{ 1, 1766400, PLL_2, 3, 0, UINT_MAX, 1325, VDD_RAW(1325), &pll2_tbl[12]},
-	{ 1, 1804800, PLL_2, 3, 0, UINT_MAX, 1350, VDD_RAW(1350), &pll2_tbl[13]},
-	{ 1, 1824000, PLL_2, 3, 0, UINT_MAX, 1375, VDD_RAW(1375), &pll2_tbl[14]},
+	{ 1, 1612800, PLL_2, 3, 0, UINT_MAX, 1275, VDD_RAW(1275), &pll2_tbl[8]},
+	{ 1, 1708800, PLL_2, 3, 0, UINT_MAX, 1300, VDD_RAW(1300), &pll2_tbl[9]},
+	{ 1, 1804800, PLL_2, 3, 0, UINT_MAX, 1350, VDD_RAW(1350), &pll2_tbl[10]},
 #endif
 	{ 0 }
 };
