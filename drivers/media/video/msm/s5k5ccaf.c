@@ -1032,7 +1032,7 @@ void s5k5ccaf_set_preview_size(int preivewsize)
     case S5K5CCGX_PREVIEW_XGA: break;  /* 1024x768*/
     case S5K5CCGX_PREVIEW_528x432: break; /* 528x432 */
     default: PCAM_DEBUG("[S5K5CCAF]not supported previewsize : %d\n",  preivewsize);break;
-}
+  }
 }
 
 int s5k5ccaf_sensor_esd_detected() //venkata
