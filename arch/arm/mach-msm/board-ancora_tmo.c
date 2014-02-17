@@ -161,7 +161,6 @@ EXPORT_SYMBOL(switch_dev);
 
 #define MSM_PMEM_ADSP_SIZE		0x1400000
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
-#define PMEM_KERNEL_EBI0_SIZE		0x0600000
 
 #ifdef CONFIG_ION_MSM
 static struct platform_device ion_dev;
@@ -7370,14 +7369,6 @@ static int __init fb_size_setup(char *p)
 	return 0;
 }
 early_param("fb_size", fb_size_setup);
-
-static unsigned pmem_kernel_ebi0_size = PMEM_KERNEL_EBI0_SIZE;
-static int __init pmem_kernel_ebi0_size_setup(char *p)
-{
-	pmem_kernel_ebi0_size = memparse(p, NULL);
-	return 0;
-}
-early_param("pmem_kernel_ebi0_size", pmem_kernel_ebi0_size_setup);
 
 #ifdef CONFIG_ION_MSM
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
