@@ -4389,6 +4389,13 @@ static struct platform_device msm_migrate_pages_device = {
 	.id     = -1,
 };
 
+static struct android_pmem_platform_data android_pmem_adsp_pdata = {
+       .name = "pmem_adsp",
+       .allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
+       .cached = 0,
+.memory_type = MEMTYPE_EBI0,
+};
+
 static struct platform_device android_pmem_adsp_device = {
 	.name = "android_pmem",
 	.id = 2,
@@ -7369,6 +7376,22 @@ static int __init fb_size_setup(char *p)
 	return 0;
 }
 early_param("fb_size", fb_size_setup);
+
+static unsigned pmem_adsp_size = MSM_PMEM_ADSP_SIZE;
+static int __init pmem_adsp_size_setup(char *p)
+{
+pmem_adsp_size = memparse(p, NULL);
+return 0;
+}
+early_param("pmem_adsp_size", pmem_adsp_size_setup);
+
+static unsigned fluid_pmem_adsp_size = MSM_FLUID_PMEM_ADSP_SIZE;
+static int __init fluid_pmem_adsp_size_setup(char *p)
+{
+fluid_pmem_adsp_size = memparse(p, NULL);
+return 0;
+}
+early_param("fluid_pmem_adsp_size", fluid_pmem_adsp_size_setup);
 
 #ifdef CONFIG_ION_MSM
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
