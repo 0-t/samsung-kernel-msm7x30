@@ -151,6 +151,7 @@ EXPORT_SYMBOL(sec_class);
 struct device *switch_dev;
 EXPORT_SYMBOL(switch_dev);
 
+#define MSM_PMEM_SF_SIZE	0x1D00000
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_PRIM_BUF_SIZE	(roundup((800 * 480 * 4), 4096) * 3) /* 4bpp * 3 Pages */
 #else
@@ -161,11 +162,13 @@ EXPORT_SYMBOL(switch_dev);
 
 #define MSM_PMEM_ADSP_SIZE		0x1400000
 #define MSM_FLUID_PMEM_ADSP_SIZE	0x2800000
+#define PMEM_KERNEL_EBI0_SIZE		0x0600000
+#define MSM_PMEM_AUDIO_SIZE		0x0200000
 
 #ifdef CONFIG_ION_MSM
 static struct platform_device ion_dev;
-#define MSM_ION_AUDIO_SIZE	0x0200000
-#define MSM_ION_SF_SIZE		0x1D00000
+#define MSM_ION_AUDIO_SIZE	MSM_PMEM_AUDIO_SIZE
+#define MSM_ION_SF_SIZE		MSM_PMEM_SF_SIZE
 #ifdef CONFIG_MSM_ADSP_USE_PMEM
 #define MSM_ION_VIDC_SIZE	0x1C80000
 #endif
@@ -4290,6 +4293,19 @@ static int msm_hsusb_pmic_notif_init(void (*callback)(int online), int init)
 }
 #endif
 
+static struct android_pmem_platform_data android_pmem_pdata = {
+	.name = "pmem",
+	.allocator_type = PMEM_ALLOCATORTYPE_ALLORNOTHING,
+	.cached = 1,
+	.memory_type = MEMTYPE_EBI0,
+};
+
+static struct platform_device android_pmem_device = {
+	.name = "android_pmem",
+	.id = 0,
+	.dev = { .platform_data = &android_pmem_pdata },
+};
+
 #ifndef CONFIG_SPI_QSD
 static int lcdc_gpio_array_num[] = {
 				45, /* spi_clk */
@@ -4390,10 +4406,10 @@ static struct platform_device msm_migrate_pages_device = {
 };
 
 static struct android_pmem_platform_data android_pmem_adsp_pdata = {
-       .name = "pmem_adsp",
-       .allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
-       .cached = 0,
-.memory_type = MEMTYPE_EBI0,
+	.name = "pmem_adsp",
+	.allocator_type = PMEM_ALLOCATORTYPE_BITMAP,
+	.cached = 0,
+	.memory_type = MEMTYPE_EBI0,
 };
 
 static struct platform_device android_pmem_adsp_device = {
@@ -5515,6 +5531,7 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_I2C_SSBI
 	&msm_device_ssbi7,
 #endif
+	&android_pmem_device,
 	&msm_fb_device,
 	&msm_migrate_pages_device,
 #ifdef CONFIG_MSM_ROTATOR
@@ -7369,6 +7386,14 @@ else
 	brcm_wlan_init();
 }
 
+static unsigned pmem_sf_size = MSM_PMEM_SF_SIZE;
+static int __init pmem_sf_size_setup(char *p)
+{
+	pmem_sf_size = memparse(p, NULL);
+	return 0;
+}
+early_param("pmem_sf_size", pmem_sf_size_setup);
+
 static unsigned fb_size;
 static int __init fb_size_setup(char *p)
 {
@@ -7380,18 +7405,26 @@ early_param("fb_size", fb_size_setup);
 static unsigned pmem_adsp_size = MSM_PMEM_ADSP_SIZE;
 static int __init pmem_adsp_size_setup(char *p)
 {
-pmem_adsp_size = memparse(p, NULL);
-return 0;
+	pmem_adsp_size = memparse(p, NULL);
+	return 0;
 }
 early_param("pmem_adsp_size", pmem_adsp_size_setup);
 
 static unsigned fluid_pmem_adsp_size = MSM_FLUID_PMEM_ADSP_SIZE;
 static int __init fluid_pmem_adsp_size_setup(char *p)
 {
-fluid_pmem_adsp_size = memparse(p, NULL);
-return 0;
+	fluid_pmem_adsp_size = memparse(p, NULL);
+	return 0;
 }
 early_param("fluid_pmem_adsp_size", fluid_pmem_adsp_size_setup);
+
+static unsigned pmem_kernel_ebi0_size = PMEM_KERNEL_EBI0_SIZE;
+static int __init pmem_kernel_ebi0_size_setup(char *p)
+{
+	pmem_kernel_ebi0_size = memparse(p, NULL);
+	return 0;
+}
+early_param("pmem_kernel_ebi0_size", pmem_kernel_ebi0_size_setup);
 
 #ifdef CONFIG_ION_MSM
 #ifdef CONFIG_MSM_MULTIMEDIA_USE_ION
@@ -7420,7 +7453,7 @@ struct ion_platform_heap msm7x30_heaps[] = {
 			.memory_type = ION_EBI_TYPE,
 			.extra_data = (void *)&co_ion_pdata,
 		},
-		/* AUDIO */
+		/* PMEM_AUDIO */
 		{
 			.id	= ION_AUDIO_HEAP_ID,
 			.type	= ION_HEAP_TYPE_CARVEOUT,
@@ -7428,7 +7461,7 @@ struct ion_platform_heap msm7x30_heaps[] = {
 			.memory_type = ION_EBI_TYPE,
 			.extra_data = (void *)&co_ion_pdata,
 		},
-		/* SF */
+		/* PMEM_MDP = SF */
 		{
 			.id	= ION_SF_HEAP_ID,
 			.type	= ION_HEAP_TYPE_CARVEOUT,
@@ -7475,15 +7508,35 @@ static void fix_sizes(void)
 
 static void __init size_pmem_devices(void)
 {
-#ifdef CONFIG_ANDROID_PMEM_ADSP
-	android_pmem_adsp_pdata.size = MSM_PMEM_ADSP_SIZE;
+#ifdef CONFIG_ANDROID_PMEM
+#ifdef CONFIG_MSM_ADSP_USE_PMEM
+	android_pmem_adsp_pdata.size = size;
+#endif
+#ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
+	android_pmem_pdata.size = pmem_sf_size;
+#endif
 #endif
 }
 
+#ifdef CONFIG_ANDROID_PMEM
+#if !defined(CONFIG_MSM_MULTIMEDIA_USE_ION) || defined(CONFIG_MSM_ADSP_USE_PMEM)
+static void __init reserve_memory_for(struct android_pmem_platform_data *p)
+{
+	msm7x30_reserve_table[p->memory_type].size += p->size;
+}
+#endif
+#endif
+
 static void __init reserve_pmem_memory(void)
 {
-#ifdef CONFIG_ANDROID_PMEM_ADSP
-	msm7x30_reserve_table[MEMTYPE_EBI0].size += MSM_PMEM_ADSP_SIZE;
+#ifdef CONFIG_ANDROID_PMEM
+#if !defined(CONFIG_MSM_MULTIMEDIA_USE_ION) || defined(CONFIG_MSM_ADSP_USE_PMEM)
+	reserve_memory_for(&android_pmem_adsp_pdata);
+#endif
+#ifndef CONFIG_MSM_MULTIMEDIA_USE_ION
+	reserve_memory_for(&android_pmem_pdata);
+	msm7x30_reserve_table[MEMTYPE_EBI0].size += pmem_kernel_ebi0_size;
+#endif
 #endif
 }
 
