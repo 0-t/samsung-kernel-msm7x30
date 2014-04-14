@@ -2166,6 +2166,7 @@ static int dvb_dmxdev_ts_event_cb(struct dmx_ts_feed *feed,
 			events->current_event_data_size = 0;
 		 }
 	}
+
 	spin_unlock(&dmxdevfilter->dev->lock);
 	wake_up_all(&buffer->queue);
 	return 0;
