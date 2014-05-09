@@ -117,7 +117,7 @@ static void notify_netlink_uevent(const char *label, struct idletimer_tg *timer)
 	char label_msg[NLMSG_MAX_SIZE];
 	char state_msg[NLMSG_MAX_SIZE];
 	char timestamp_msg[NLMSG_MAX_SIZE];
-	char *envp[] = { label, state_msg, timestamp_msg, NULL };
+	char *envp[] = { label_msg, state_msg, timestamp_msg, NULL };
 	int res;
 	struct timespec ts;
 	uint64_t time_ns;
