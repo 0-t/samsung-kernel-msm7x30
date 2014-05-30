@@ -171,7 +171,7 @@ config ARCH_MSM8960
 	select ARM_HAS_SG_CHAIN
 	select MSM_KRAIT_WFE_FIXUP
 	select MSM_IOMMU_GPU_SYNC
-        select HAS_MACH_MEMUTILS
+	select MSM_CPU_PWRCTL
 
 config ARCH_MSM8930
 	bool "MSM8930"
@@ -234,7 +234,6 @@ config ARCH_APQ8064
 	select MSM_KRAIT_WFE_FIXUP
 	select MSM_IOMMU_GPU_SYNC
 	select MSM_CPU_PWRCTL
-        select HAS_MACH_MEMUTILS
 
 config ARCH_MSM8974
 	bool "MSM8974"
@@ -2749,12 +2748,6 @@ config MSM_CPU_PWRCTL
 	  Droop detector mechanism can adversely affect krait plls during
 	  stand alone power collapse operation. Selecting this option
 	  ensures that they are always off.
-
-config HAS_MACH_MEMUTILS
-	default n
-	bool "Motorola MSM memcpy enhancements"
-	help
-	Faster memcpy performance for Krait
 
 config FORCE_FAST_CHARGE
 	bool "Force AC charge mode at will"
