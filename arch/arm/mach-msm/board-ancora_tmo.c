@@ -152,7 +152,8 @@ EXPORT_SYMBOL(sec_class);
 struct device *switch_dev;
 EXPORT_SYMBOL(switch_dev);
 
-#define MSM_PMEM_SF_SIZE	0x1D00000
+#define MSM_PMEM_SF_SIZE	0x1F00000
+
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MSM_FB_PRIM_BUF_SIZE	(roundup((800 * 480 * 4), 4096) * 3) /* 4bpp * 3 Pages */
 #else
@@ -1999,27 +2000,27 @@ static struct platform_device amp_i2c_gpio_device = {
 #ifdef CONFIG_MACH_ANCORA_TMO
 static struct snd_set_ampgain init_ampgain[] = {
 	[0] = {
-		.in1_gain = 2,
-		.in2_gain = 2,
+		.in1_gain = 5,
+		.in2_gain = 5,
 		.hp_att = 31,
-		.hp_gainup = 2,
+		.hp_gainup = 1,
 		.sp_att = 29,
 		.sp_gainup = 1,
 	},
 	[1] = { /* [HSS] headset_call, speaker_call */
-		.in1_gain = 2,
-		.in2_gain = 0,
-		.hp_att = 17,
+		.in1_gain = 4,
+		.in2_gain = 2,
+		.hp_att = 20,
 		.hp_gainup = 1,
 		.sp_att = 31,
-		.sp_gainup = 0,
+		.sp_gainup = 1,
 	},
 	[2] = { /* [HSS] headset_speaker */
-		.in1_gain = 0,
-		.in2_gain = 1,
-		.hp_att = 1,
-		.hp_gainup = 0,
-		.sp_att = 30,
+		.in1_gain = 6,
+		.in2_gain = 3,
+		.hp_att = 6,
+		.hp_gainup = 1,
+		.sp_att = 31,
 		.sp_gainup = 2,
 	},
 };
